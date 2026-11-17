@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation'; 
+
 import { 
   HiOutlineChevronDown, HiOutlineChevronLeft, HiOutlineChevronRight, 
   HiOutlineChevronUp, HiOutlineClipboardList, 
@@ -14,7 +15,7 @@ import {
   HiOutlineTruck, 
   HiOutlineUserGroup, HiOutlineUsers, HiTruck, HiUsers,
   HiChevronDoubleLeft, HiChevronDoubleRight, HiOutlineBell,
-  HiCube, HiHome, HiCurrencyDollar
+  HiCube, HiHome, HiCurrencyDollar, HiOutlineDocumentReport
 } from 'react-icons/hi';
 import { MdDashboard, MdWarehouse, MdLocalShipping, MdAttachMoney } from 'react-icons/md';
 import { BsPeople, BsClipboardData } from 'react-icons/bs';
@@ -198,6 +199,21 @@ const menuItems = [
       },
     ],
   },
+  {
+  title: 'All Quotes',
+  path: '/quotes',
+  icon: <HiOutlineDocumentReport className="w-5 h-5" />,
+  activeIcon: <HiOutlineDocumentReport className="w-5 h-5" />,
+  roles: ['admin'],
+  children: [
+    {
+      title: 'Quote Requests',
+      path: '/quotes',
+      icon: <HiOutlineDocumentReport className="w-4 h-4" />,
+      roles: ['admin'],
+    },
+  ],
+},
   {
     title: 'Documents',
     path: '/shippings/invoice',

@@ -112,6 +112,12 @@ const PACKAGING_TYPES = [
   { value: '40ft_container', label: '40FT Container' }
 ];
 
+// Returns today's date in the user's LOCAL timezone as YYYY-MM-DD
+const getTodayLocal = () => {
+  const d = new Date();
+  const offset = d.getTimezoneOffset();
+  return new Date(d.getTime() - offset * 60000).toISOString().split('T')[0];
+};
 // ==================== COMPONENTS ====================
 
 const Button = ({ children, type = 'button', variant = 'primary', size = 'md', isLoading = false, disabled = false, onClick, className = '', icon: Icon, iconPosition = 'left' }) => {
@@ -455,6 +461,7 @@ export default function CreateBooking() {
     },
     
     dates: {
+       requested: getTodayLocal(),  
       estimatedDeparture: '',
       estimatedArrival: ''
     },
@@ -607,6 +614,8 @@ export default function CreateBooking() {
       if (!value) error = 'Departure date is required';
     } else if (name === 'dates.estimatedArrival') {
       if (!value) error = 'Arrival date is required';
+    } else if (name === 'dates.requested') {                 // ← NEW
+      if (!value) error = 'Booking date is required';
     }
     
     // Step 2 validations
@@ -679,6 +688,10 @@ export default function CreateBooking() {
       }
       if (!formData.payment.mode) {
         newErrors['payment.mode'] = 'Payment mode is required';
+        isValid = false;
+      }
+      if (!formData.dates.requested) {                       // ← NEW
+        newErrors['dates.requested'] = 'Booking date is required';
         isValid = false;
       }
       if (!formData.dates.estimatedDeparture) {
@@ -1051,6 +1064,11 @@ export default function CreateBooking() {
       setCurrentStep(1);
       return;
     }
+     if (!formData.dates.requested) {
+      toast.error('📅 Please select a booking date');
+      setCurrentStep(1);
+      return;
+    }
     
     if (!formData.dates.estimatedDeparture) {
       toast.error('📅 Please select departure date');
@@ -1226,6 +1244,7 @@ export default function CreateBooking() {
         },
         
         dates: {
+            requested: formData.dates.requested,
           estimatedDeparture: formData.dates.estimatedDeparture,
           estimatedArrival: formData.dates.estimatedArrival
         },
@@ -1611,7 +1630,17 @@ export default function CreateBooking() {
                 </div>
 
                 {/* Dates */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
+                   <Input
+    label="Booking Date"
+    type="date"
+    name="dates.requested"
+    value={formData.dates.requested}
+    onChange={handleInputChange}
+    required
+    icon={Calendar}
+    error={errors['dates.requested']}
+  />
                   <Input
                     label="Departure Date"
                     type="date"
@@ -1621,7 +1650,6 @@ export default function CreateBooking() {
                     required
                     icon={Calendar}
                     error={errors['dates.estimatedDeparture']}
-                    min={new Date().toISOString().split('T')[0]}
                   />
                   
                   <Input
@@ -1633,7 +1661,6 @@ export default function CreateBooking() {
                     required
                     icon={Calendar}
                     error={errors['dates.estimatedArrival']}
-                    min={formData.dates.estimatedDeparture || new Date().toISOString().split('T')[0]}
                   />
                 </div>
 
@@ -2010,7 +2037,6 @@ export default function CreateBooking() {
                           onChange={handleInputChange}
                           required
                           icon={Calendar}
-                          min={new Date().toISOString().split('T')[0]}
                           error={errors['sender.pickupDate']}
                         />
 
@@ -2251,6 +2277,14 @@ export default function CreateBooking() {
                       <span className="text-gray-500">Service:</span>{' '}
                       <span className="font-medium">{formData.serviceType}</span>
                     </div>
+                     <div>                                                 {/* ← NEW */}
+          <span className="text-gray-500">Booking Date:</span>{' '}
+          <span className="font-medium">
+            {formData.dates.requested
+              ? new Date(formData.dates.requested).toLocaleDateString()
+              : 'Today'}
+          </span>
+        </div>
                     <div>
                       <span className="text-gray-500">Departure:</span>{' '}
                       <span className="font-medium">{new Date(formData.dates.estimatedDeparture).toLocaleDateString()}</span>

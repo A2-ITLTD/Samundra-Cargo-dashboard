@@ -629,6 +629,36 @@ export const addDocument = async (bookingId, documentData) => {
   }
 };
 
+// 18. UPDATE BOOKING ADDRESSES (Admin)
+// Controller: exports.updateBookingAddresses
+// Endpoint: PUT /bookings/:id/addresses
+export const updateBookingAddresses = async (bookingId, payload) => {
+  try {
+    const response = await axiosInstance.put(`/bookings/${bookingId}/addresses`, payload);
+
+    if (response.data?.success) {
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message
+      };
+    }
+
+    throw new Error(response.data?.message || 'Failed to update addresses');
+  } catch (error) {
+    console.error('Update booking addresses error:', error);
+    return {
+      success: false,
+      message:
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to update addresses',
+      error: error.response?.data
+    };
+  }
+};
+
 // ==================== HELPER FUNCTIONS ====================
 
 // Get status color for UI
