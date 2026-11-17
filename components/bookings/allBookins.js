@@ -3459,11 +3459,33 @@ const PriceQuoteModal = ({ isOpen, onClose, booking, onSave }) => {
     setFormData(prev => ({ ...prev, currency: currencyCode }));
   };
 
+  const breakdownValues = Object.values(formData.breakdown).map(value => Number(value) || 0);
+  const breakdownTotalCents = breakdownValues.reduce((sum, value) => sum + Math.round(value * 100), 0);
+  const quoteTotalCents = Math.round((Number(formData.amount) || 0) * 100);
+  const hasBreakdownDetails = breakdownValues.some(value => value !== 0);
+  const hasNegativeBreakdown = breakdownValues.some(value => value < 0);
+  const breakdownMatchesQuote = !hasBreakdownDetails || breakdownTotalCents === quoteTotalCents;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.amount || !formData.validUntil) {
       toast.warning('Please fill in all required fields');
+      return;
+    }
+
+    if (!Number.isFinite(Number(formData.amount)) || Number(formData.amount) <= 0) {
+      toast.error('Quote total must be greater than zero');
+      return;
+    }
+
+    if (hasNegativeBreakdown) {
+      toast.error('Breakdown charges cannot be negative');
+      return;
+    }
+
+    if (!breakdownMatchesQuote) {
+      toast.error(`Breakdown total ${currentCurrency.symbol}${(breakdownTotalCents / 100).toFixed(2)} must equal quote total ${currentCurrency.symbol}${(quoteTotalCents / 100).toFixed(2)}. Add the difference to a breakdown field or change the quote total.`);
       return;
     }
 
@@ -3727,6 +3749,12 @@ const PriceQuoteModal = ({ isOpen, onClose, booking, onSave }) => {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className={`mb-4 rounded-md px-3 py-2 text-xs ${breakdownMatchesQuote && !hasNegativeBreakdown ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {hasBreakdownDetails
+            ? `Breakdown total: ${currentCurrency.symbol}${(breakdownTotalCents / 100).toFixed(2)} · Quote total: ${currentCurrency.symbol}${(quoteTotalCents / 100).toFixed(2)}${breakdownMatchesQuote ? ' — totals match' : ' — adjust the breakdown so the totals match'}`
+            : 'No detailed breakdown entered; the invoice will show the quote total as one freight charge.'}
         </div>
 
         <div>
@@ -5377,7 +5405,10 @@ export default function BookingsPage() {
         break;
       case 'share':
         if (booking.trackingNumber) {
-          const trackingLink = `${window.location.origin}/track/${booking.trackingNumber}`;
+          const trackingUrl = new URL('/tracking-number', window.location.origin);
+          trackingUrl.searchParams.set('tracking', booking.trackingNumber);
+          trackingUrl.searchParams.set('type', 'tracking_number');
+          const trackingLink = trackingUrl.toString();
           navigator.clipboard.writeText(trackingLink);
           toast.success('Tracking link copied to clipboard!');
         } else {

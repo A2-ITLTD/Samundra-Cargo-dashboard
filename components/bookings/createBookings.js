@@ -2212,7 +2212,7 @@ export default function CreateBooking() {
                       <div className="ml-2 flex-1">
                         <p className="text-xs font-medium text-yellow-800">Review Required</p>
                         <p className="text-xs text-yellow-700 mt-1">
-                          Check all details. Click "Confirm Details" before submitting the booking.
+                          Check all details. Click &quot;Confirm Details&quot; before submitting the booking.
                         </p>
                       </div>
                     </div>

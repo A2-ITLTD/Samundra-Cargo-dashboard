@@ -1390,7 +1390,7 @@ const AssignModal = ({ isOpen, onClose, shipment, onAssign }) => {
     (async () => {
       setLoadingStaff(true);
       try {
-        const res = await getAllUsers();
+        const res = await getAllUsers({ role: 'staff', limit: 100 });
         const users = res?.data || res?.users || [];
         const options = users
           .filter((u) => u && u._id && u.role && u.role !== 'customer')
@@ -1756,7 +1756,7 @@ export default function ShipmentsPage() {
       case 'warehouse': setShowWarehouseModal(true); break;
       case 'cancel': setShowCancelModal(true); break;
       case 'download': if (shipment.documents && shipment.documents.length > 0) toast.info('Download feature coming soon'); else toast.info('No documents to download'); break;
-      case 'share': if (shipment.trackingNumber) { navigator.clipboard.writeText(`${window.location.origin}/track/${shipment.trackingNumber}`); toast.success('Tracking link copied!'); } else toast.warning('No tracking number available'); break;
+      case 'share': if (shipment.trackingNumber) { const trackingUrl = new URL('/tracking-number', window.location.origin); trackingUrl.searchParams.set('tracking', shipment.trackingNumber); trackingUrl.searchParams.set('type', 'tracking_number'); navigator.clipboard.writeText(trackingUrl.toString()); toast.success('Tracking link copied!'); } else toast.warning('No tracking number available'); break;
       default: break;
     }
   };

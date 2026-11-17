@@ -92,14 +92,14 @@ const menuItems = [
   },
   {
     title: 'Users',
-    path: '/users/customers',
+    path: '/users',
     icon: <BsPeople className="w-5 h-5" />,
     activeIcon: <BsPeople className="w-5 h-5" />, 
     roles: ['admin'],
     children: [
       {
         title: 'All Users',
-        path: '/users/customers',
+        path: '/users',
         icon: <HiOutlineUserGroup className="w-4 h-4" />,
         roles: ['admin']
       },
@@ -246,12 +246,13 @@ const menuItems = [
 
 // Filter menu by role
 const filterMenuByRole = (items, userRole) => {
+  const effectiveRole = userRole === 'super_admin' ? 'admin' : userRole;
   return items
-    .filter(item => !item.roles || item.roles.includes(userRole))
+    .filter(item => !item.roles || item.roles.includes(effectiveRole))
     .map(item => {
       if (item.children) {
         const filteredChildren = item.children.filter(child => 
-          !child.roles || child.roles.includes(userRole)
+          !child.roles || child.roles.includes(effectiveRole)
         );
         if (filteredChildren.length > 0) {
           return { ...item, children: filteredChildren };
@@ -272,7 +273,8 @@ const MenuItem = ({ item, collapsed, depth = 0, onMenuClick, openMenu, setOpenMe
   // (The App Router has no router.events, so nothing else turns this off and
   // the loader would otherwise spin forever.)
   useEffect(() => {
-    setIsNavigating(false);
+    const timeoutId = window.setTimeout(() => setIsNavigating(false), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [pathname]);
 
   const hasChildren = item.children && item.children.length > 0;

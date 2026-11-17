@@ -340,7 +340,7 @@ const DamageReportCard = ({ report, onView, onUpdate, onDelete }) => {
       {/* Findings */}
       {report.findings && (
         <p className="text-xs text-gray-600 mb-3 line-clamp-2 bg-gray-50 p-2 rounded-lg">
-          "{report.findings}"
+          &quot;{report.findings}&quot;
         </p>
       )}
 

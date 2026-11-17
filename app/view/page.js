@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getUserById, isAdmin } from '@/services/Authentication';
 import { toast } from 'react-toastify';
@@ -48,12 +48,15 @@ import { BsPersonBadge, BsPersonWorkspace, BsShop } from 'react-icons/bs';
 
 const AdminUserDetailPage = () => {
   const router = useRouter();
-  const params = useParams();
-  const userId = params?.id;
+  const [userId, setUserId] = useState(null);
   
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => {
+    setUserId(new URLSearchParams(window.location.search).get('id'));
+  }, []);
 
   useEffect(() => {
     // Check if user is admin
@@ -187,7 +190,7 @@ const AdminUserDetailPage = () => {
             <FiAlertCircle className="w-10 h-10 text-red-500" />
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">User Not Found</h2>
-          <p className="text-gray-600 mb-6">The user you're looking for doesn't exist or has been removed.</p>
+          <p className="text-gray-600 mb-6">The user you&apos;re looking for doesn&apos;t exist or has been removed.</p>
           <button
             onClick={() => router.push('/users')}
             className="px-6 py-3 bg-[#E67E22] text-white rounded-xl hover:bg-[#d35400] transition-colors inline-flex items-center font-medium shadow-lg shadow-red-200"
@@ -283,7 +286,7 @@ const AdminUserDetailPage = () => {
 
               <div className="flex space-x-3">
                 <Link
-                  href={`/users/${user._id}/edit`}
+                  href={`/edit?id=${encodeURIComponent(user._id)}`}
                   className="inline-flex items-center px-5 py-2.5 bg-[#122652] text-white rounded-xl hover:bg-[#0a1a3a] transition-all shadow-lg shadow-blue-900/20"
                 >
                   <FiEdit2 className="w-4 h-4 mr-2" />
