@@ -7,7 +7,6 @@ import {
   CardContent,
   Typography,
   Box,
-  CircularProgress,
   Alert,
   Divider,
   Chip,
@@ -528,14 +527,6 @@ const DashboardSummary = () => {
     }]
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   if (error) {
     return (
       <Alert severity="error" sx={{ m: 2 }}>
@@ -546,6 +537,7 @@ const DashboardSummary = () => {
 
   return (
     <Box sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, bgcolor: '#f7f9fc', minWidth: 0, width: '100%', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
+      {loading && <LinearProgress sx={{ mb: 2 }} aria-label="Loading dashboard data" />}
       <Grid container spacing={3} sx={{ mb: 4, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
         <Grid item xs={12} md={8}>
           <Card sx={{ p: { xs: 2.5, md: 3 }, minHeight: 160, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', width: '100%', maxWidth: '100%' }}>

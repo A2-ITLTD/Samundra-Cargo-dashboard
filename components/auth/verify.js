@@ -191,9 +191,7 @@ export default function verifyResetOTPPage() {
           autoClose: 3000,
         });
         
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 3000);
+        router.replace('/dashboard');
       }
     } catch (error) {
       toast.error(error.message || 'Invalid OTP. Please try again.', {

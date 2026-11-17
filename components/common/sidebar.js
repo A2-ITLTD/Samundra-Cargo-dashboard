@@ -22,16 +22,6 @@ import { BsPeople, BsClipboardData } from 'react-icons/bs';
 import { logout as authLogout, getAuthToken, getUserDetails } from '@/utils/SessionHelper';
 import { useSiteSettings } from '@/components/context/SiteSettingsProvider';
 
-// Loading Spinner Component
-const LoadingSpinner = () => (
-  <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
-    <div className="relative">
-      <div className="w-16 h-16 border-4 border-gray-200 rounded-full"></div>
-      <div className="w-16 h-16 border-4 border-slate-700 rounded-full border-t-transparent animate-spin absolute top-0 left-0"></div>
-    </div>
-  </div>
-);
-
 // Menu Skeleton Loader
 const MenuSkeleton = () => (
   <div className="px-4 py-2 space-y-2">
@@ -266,14 +256,6 @@ const filterMenuByRole = (items, userRole) => {
 const MenuItem = ({ item, collapsed, depth = 0, onMenuClick, openMenu, setOpenMenu, userRole, isLoading }) => {
   const pathname = usePathname();
   const router = useRouter();
-  const [isNavigating, setIsNavigating] = useState(false);
-
-  // Navigation finished once the pathname changes → stop the per-item spinner.
-  // (The App Router has no router.events, so nothing else turns this off and
-  // the loader would otherwise spin forever.)
-  useEffect(() => {
-    setIsNavigating(false);
-  }, [pathname]);
 
   const hasChildren = item.children && item.children.length > 0;
   const isOpen = openMenu === item.title;
@@ -311,11 +293,8 @@ const MenuItem = ({ item, collapsed, depth = 0, onMenuClick, openMenu, setOpenMe
       e.stopPropagation();
 
       if (collapsed) {
-        setIsNavigating(true);
         onMenuClick?.();
-        setTimeout(() => {
-          router.push(item.path);
-        }, 100);
+        router.push(item.path);
         return;
       }
 
@@ -323,7 +302,6 @@ const MenuItem = ({ item, collapsed, depth = 0, onMenuClick, openMenu, setOpenMe
       return;
     }
 
-    setIsNavigating(true);
     onMenuClick?.();
   };
 
@@ -358,13 +336,7 @@ const MenuItem = ({ item, collapsed, depth = 0, onMenuClick, openMenu, setOpenMe
         <>
           <span className="ml-3 flex-1 text-sm font-medium text-left">{item.title}</span>
 
-          {isNavigating && (
-            <span className="ml-2">
-              <div className="w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin"></div>
-            </span>
-          )}
-
-          {hasChildren && !isNavigating && (
+          {hasChildren && (
             <span className="ml-2">
               {isOpen ? (
                 <HiOutlineChevronUp className="w-4 h-4" />
@@ -427,7 +399,6 @@ const MenuItem = ({ item, collapsed, depth = 0, onMenuClick, openMenu, setOpenMe
 // User Profile Component
 const UserProfile = ({ collapsed, user, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const getInitials = () => {
     if (user?.firstName) return user.firstName.charAt(0).toUpperCase();
@@ -446,10 +417,7 @@ const UserProfile = ({ collapsed, user, onLogout }) => {
   };
 
   const handleLogoutClick = () => {
-    setIsLoggingOut(true);
-    setTimeout(() => {
-      onLogout();
-    }, 500);
+    onLogout();
   };
 
   return (
@@ -480,11 +448,7 @@ const UserProfile = ({ collapsed, user, onLogout }) => {
                 </p>
                 <p className="text-xs text-gray-400 capitalize">{user?.role || 'user'}</p>
               </div>
-              {isLoggingOut ? (
-                <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-primary rounded-full animate-spin"></div>
-              ) : (
-                <HiOutlineChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-              )}
+              <HiOutlineChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </>
           )}
 
@@ -496,7 +460,7 @@ const UserProfile = ({ collapsed, user, onLogout }) => {
         </button>
 
         {/* Dropdown menu */}
-        {!collapsed && isOpen && !isLoggingOut && (
+        {!collapsed && isOpen && (
           <div className="absolute bottom-full left-0 w-full mb-1 bg-white rounded-lg shadow-lg border border-gray-100 py-1 animate-slideUp z-50">
             <div className="px-4 py-2 border-b border-gray-100">
               <p className="text-sm font-medium text-gray-700">{getDisplayName()}</p>
@@ -541,13 +505,12 @@ export default function Sidebar({ user: propUser = null }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [user, setUser] = useState(propUser);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPageLoading, setIsPageLoading] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   // Check login status once on mount. NOTE: dependency MUST stay [] — if this
   // runs on every pathname change it flips isLoading=true and remounts the whole
-  // sidebar into the skeleton on each navigation, resetting openMenu/isNavigating
+  // sidebar into the skeleton on each navigation, resetting openMenu
   // and making links feel like they need a second click. User details come from
   // the cookie, which doesn't change between routes, so one run is enough.
   useEffect(() => {
@@ -569,22 +532,6 @@ export default function Sidebar({ user: propUser = null }) {
 
     loadUser();
   }, []);
-
-  // Handle page navigation loading
-  useEffect(() => {
-    const handleStart = () => setIsPageLoading(true);
-    const handleComplete = () => setIsPageLoading(false);
-
-    router.events?.on('routeChangeStart', handleStart);
-    router.events?.on('routeChangeComplete', handleComplete);
-    router.events?.on('routeChangeError', handleComplete);
-
-    return () => {
-      router.events?.off('routeChangeStart', handleStart);
-      router.events?.off('routeChangeComplete', handleComplete);
-      router.events?.off('routeChangeError', handleComplete);
-    };
-  }, [router]);
 
   // Mobile check
   useEffect(() => {
@@ -684,7 +631,7 @@ export default function Sidebar({ user: propUser = null }) {
 
   const handleLogout = () => {
     authLogout();
-    router.push('/');
+    router.replace('/');
   };
 
   // Filter items based on search
@@ -709,9 +656,6 @@ export default function Sidebar({ user: propUser = null }) {
 
   return (
     <>
-      {/* Global loading spinner */}
-      {isPageLoading && <LoadingSpinner />}
-
       {/* Mobile overlay */}
       {isMobile && mobileOpen && (
         <div 

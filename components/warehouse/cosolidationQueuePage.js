@@ -645,8 +645,7 @@ const CreateConsolidationModal = ({ isOpen, onClose, group, selectedShipments, o
           for (const receiptId of receiptIds) {
             try {
               // Use the shared axiosInstance so the request carries the cookie
-              // auth token and the configured API base URL (was hardcoded to
-              // http://localhost:5000 with a null localStorage token + wrong path).
+              // auth token and the configured API base URL.
               await axiosInstance.patch(`/receipts/${receiptId}/consolidate`, {
                 status: 'consolidated'
               });

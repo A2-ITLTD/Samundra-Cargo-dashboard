@@ -131,21 +131,25 @@ const removeAllCookies = () => {
   });
 };
 
-// ============ SESSION CLEAR ============
-export const clearAllSessions = () => {
+const clearSessionData = () => {
   if (typeof window !== 'undefined') {
     removeAllCookies();
-    localStorage.clear();
-    window.location.href = "/";
+    ['email', 'otp', 'userDetails', 'user', 'authToken', 'token'].forEach((key) => {
+      localStorage.removeItem(key);
+    });
+    window.dispatchEvent(new Event('authChange'));
   }
 };
 
-// ============ LOGOUT ============
-export const logout = () => {
-  if (typeof window !== 'undefined') {
-    removeAllCookies();
-    localStorage.clear();
-    window.location.href = "/";
+// ============ SESSION CLEAR / LOGOUT ============
+export const clearAllSessions = clearSessionData;
+export const logout = clearSessionData;
+
+export const expireSession = () => {
+  const hadToken = Boolean(getAuthToken());
+  clearSessionData();
+  if (hadToken && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('sessionExpired'));
   }
 };
 

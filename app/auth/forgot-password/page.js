@@ -327,9 +327,7 @@ export default function ForgotPasswordPage() {
           autoClose: 3000,
         });
         
-        setTimeout(() => {
-          router.push('/');
-        }, 3000);
+        router.replace('/');
       } catch (error) {
         toast.error(error.message || 'Failed to reset password. Please try again.', {
           position: 'top-right',

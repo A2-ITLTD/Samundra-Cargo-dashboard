@@ -1,11 +1,21 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from '@/components/common/sidebar';
 import SiteSettingsProvider from '@/components/context/SiteSettingsProvider';
 
 export default function LayoutClient({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      if (window.location.pathname !== '/') router.replace('/');
+    };
+    window.addEventListener('sessionExpired', handleSessionExpired);
+    return () => window.removeEventListener('sessionExpired', handleSessionExpired);
+  }, [router]);
 
   // Show sidebar only on protected routes (not on login page)
   const isLoginPage = pathname === '/' || pathname === '/auth/forgot-password' || pathname === '/auth/register';

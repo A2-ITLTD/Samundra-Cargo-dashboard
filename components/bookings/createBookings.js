@@ -1311,11 +1311,9 @@ export default function CreateBooking() {
       toast.dismiss(loadingToast);
       
       if (response.success) {
-        toast.success('🎉 Booking created successfully! Redirecting...');
+        toast.success('🎉 Booking created successfully!');
         setShowSuccess(true);
-        setTimeout(() => {
-          router.push('/Bookings/all_bookings');
-        }, 2000);
+        router.replace('/Bookings/all_bookings');
       } else {
         const errorMsg = response.message || 'Failed to create booking';
         toast.error(`❌ ${errorMsg}`);

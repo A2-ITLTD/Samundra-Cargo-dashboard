@@ -1119,9 +1119,7 @@ if (!finalTrackingNumber) {
       }
       setShowSuccess(true);
       
-      setTimeout(() => {
-        router.push('/shippings/manual-shipping');
-      }, 2000);
+      router.replace('/shippings/manual-shipping');
     } else {
       const errorMsg = response?.message || 'Failed to create shipment';
       console.error('❌ Shipment creation failed:', errorMsg);
