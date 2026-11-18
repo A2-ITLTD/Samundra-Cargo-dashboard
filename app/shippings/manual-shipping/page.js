@@ -4376,16 +4376,15 @@ export default function AllShipments() {
       if (response.success) {
         setShipments(response.data || []);
         setPagination(response.pagination || { total: 0, page: 1, limit: 20, pages: 1 });
-        const shipmentsData = response.data || [];
-        const responseSummary = response.summary || {};
-        const onHoldFromData = shipmentsData.filter(s => (s.shipmentStatus || s.status) === 'on_hold').length;
-        setSummary({
-          total: responseSummary.total ?? shipmentsData.length,
-          active: responseSummary.active ?? shipmentsData.filter(s => !['delivered', 'cancelled', 'on_hold'].includes(s.shipmentStatus || s.status)).length,
-          delivered: responseSummary.delivered ?? shipmentsData.filter(s => (s.shipmentStatus || s.status) === 'delivered').length,
-          on_hold: responseSummary.on_hold ?? responseSummary.onHold ?? onHoldFromData,
-          cancelled: responseSummary.cancelled ?? shipmentsData.filter(s => (s.shipmentStatus || s.status) === 'cancelled').length
-        });
+     const shipmentsData = response.data || [];
+const responseSummary = response.summary || {};
+setSummary({
+  total:     responseSummary.total     ?? 0,
+  active:    responseSummary.active    ?? 0,
+  delivered: responseSummary.delivered ?? 0,
+  on_hold:   responseSummary.on_hold ?? responseSummary.onHold ?? 0,
+  cancelled: responseSummary.cancelled ?? 0
+});
 
         return shipmentsData;
       } else {
@@ -4464,14 +4463,14 @@ export default function AllShipments() {
     setFilters(prev => ({ ...prev, page: 1, status: statusMap[status] ?? '' }));
   };
 
-  const displayedShipments = shipments.filter((shipment) => {
-    const status = shipment.shipmentStatus || shipment.status;
-    if (activeStat === 'delivered') return status === 'delivered';
-    if (activeStat === 'on_hold') return status === 'on_hold';
-    if (activeStat === 'cancelled') return status === 'cancelled';
-    if (activeStat === 'active') return !['delivered', 'cancelled', 'on_hold'].includes(status);
-    return true;
-  });
+const displayedShipments = shipments.filter((shipment) => {
+  const status = shipment.shipmentStatus || shipment.status;
+  if (activeStat === 'delivered') return ['delivered', 'completed'].includes(status);   // ← fixed
+  if (activeStat === 'on_hold')   return status === 'on_hold';
+  if (activeStat === 'cancelled') return status === 'cancelled';
+  if (activeStat === 'active')    return !['delivered', 'completed', 'cancelled', 'on_hold'].includes(status); // ← also include 'completed'
+  return true;
+});
 
   const handleExport = () => {
     if (shipments.length === 0) {

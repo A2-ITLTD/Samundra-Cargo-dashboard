@@ -1024,6 +1024,7 @@ if (!finalTrackingNumber) {
     let timelineEntries = trackingTimeline.map(entry => ({
       status: entry.status,
       description: entry.description || '',
+        location: entry.location || '', 
       updatedBy: adminUser?._id,
       timestamp: entry.timestamp || new Date(),
       metadata: entry.metadata || {}
@@ -1667,6 +1668,16 @@ if (!finalTrackingNumber) {
                           required
                         />
                       </div>
+                      <div>
+  <Input
+    label="Location"
+    type="text"
+    value={newTrackingStep.location || ''}
+    onChange={(e) => setNewTrackingStep(prev => ({ ...prev, location: e.target.value }))}
+    placeholder="e.g., Shanghai Port, China"
+    icon={MapPin}
+  />
+</div>
                       <div className="col-span-2">
                         <TextArea
                           label="Description (Optional)"
