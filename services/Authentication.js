@@ -176,9 +176,14 @@ export const createStaff = async (staffData) => {
 };
 
 // Get All Users (Admin Only)
-export const getAllUsers = async () => {
+export const getAllUsers = async (params = {}) => {
   try {
-    const response = await axiosInstance.get('/admin/users');
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') query.set(key, value);
+    });
+    const suffix = query.toString();
+    const response = await axiosInstance.get(`/admin/users${suffix ? `?${suffix}` : ''}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to get users' };
@@ -216,9 +221,14 @@ export const deleteUser = async (userId) => {
 };
 
 // Get Users By Role (Admin Only)
-export const getUsersByRole = async (role) => {
+export const getUsersByRole = async (role, params = {}) => {
   try {
-    const response = await axiosInstance.get(`/admin/users/role/${role}`);
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') query.set(key, value);
+    });
+    const suffix = query.toString();
+    const response = await axiosInstance.get(`/admin/users/role/${role}${suffix ? `?${suffix}` : ''}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to get users by role' };
@@ -268,7 +278,8 @@ export const hasRole = (role) => {
 
 // Check if User is Admin
 export const isAdmin = () => {
-  return hasRole('admin');
+  const user = getCurrentUser();
+  return user?.role === 'admin' || user?.role === 'super_admin';
 };
 
 // Check if User is Customer
@@ -280,4 +291,13 @@ export const isCustomer = () => {
 export const isStaff = () => {
   const user = getCurrentUser();
   return user?.role === 'operations' || user?.role === 'warehouse';
+};
+
+export const getUserStats = async () => {
+  try {
+    const response = await axiosInstance.get('/admin/users/stats');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to get user statistics' };
+  }
 };

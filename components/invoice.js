@@ -1027,7 +1027,7 @@ const handleDeleteInvoice = async (invoiceId) => {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <Link href="/admin" className="p-2 hover:bg-gray-100 rounded-lg">
+              <Link href="/dashboard" className="p-2 hover:bg-gray-100 rounded-lg">
                 <ArrowLeft className="h-5 w-5 text-gray-600" />
               </Link>
               <div>

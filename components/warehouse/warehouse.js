@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import NextImage from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -22,7 +22,7 @@ import { getConsolidationQueue, createConsolidation, addToQueue } from '@/servic
 import { formatDate } from '@/services/booking';
 import { 
   Loader2, Package, Search, Calendar, MapPin, User, 
-  X, CheckCircle, Map, AlertTriangle, Save, Boxes,
+  X, CheckCircle, AlertTriangle, Save, Boxes,
   Warehouse, Layers, Tag, Hash, Weight, Ruler, AlertOctagon,
   RefreshCw, Eye, Download, Filter, ArrowLeft, ChevronLeft, ChevronRight,
   ClipboardList, ThumbsUp, ThumbsDown, Camera, FileText, Upload, Trash2,
@@ -32,37 +32,6 @@ import {
 import { toast } from 'react-toastify';
 
 // ==================== CONSTANTS ====================
-
-// Package Type wise Storage Zone Mapping
-const PACKAGE_STORAGE_MAP = {
-  'pallet': { zone: 'P', zoneName: 'Pallet Zone', default: 'P-1-1-1', description: 'Heavy duty pallet racking' },
-  'crate': { zone: 'C', zoneName: 'Crate Zone', default: 'C-1-1-1', description: 'Wooden crate storage' },
-  'wooden_box': { zone: 'W', zoneName: 'Wooden Box Zone', default: 'W-1-1-1', description: 'Wooden box storage area' },
-  'carton': { zone: 'A', zoneName: 'General Carton Zone', default: 'A-1-1-1', description: 'Standard carton storage' },
-  'box': { zone: 'A', zoneName: 'General Carton Zone', default: 'A-1-1-1', description: 'Standard box storage' },
-  'container': { zone: 'L', zoneName: 'Large Container Zone', default: 'L-1-1-1', description: 'Empty container storage' },
-  '20ft_container': { zone: 'Y20', zoneName: '20ft Container Yard', default: 'Y20-1-1-1', description: '20ft container parking' },
-  '40ft_container': { zone: 'Y40', zoneName: '40ft Container Yard', default: 'Y40-1-1-1', description: '40ft container parking' },
-  'loose_cargo': { zone: 'B', zoneName: 'Bulk Cargo Zone', default: 'B-1-1-1', description: 'Bulk cargo storage' },
-  'loose_tires': { zone: 'T', zoneName: 'Tire Storage Zone', default: 'T-1-1-1', description: 'Tire storage racks' },
-  'envelope': { zone: 'S', zoneName: 'Small Items Zone', default: 'S-1-1-1', description: 'Small parcel storage' }
-};
-
-// 🚨 DAMAGE ZONE
-const DAMAGE_ZONE = {
-  zone: 'DZ',
-  zoneName: '🚨 DAMAGE ZONE - Inspection Area',
-  default: 'DZ-1-1-1',
-  description: 'Damaged goods - Awaiting inspection/disposal'
-};
-
-// Default storage
-const DEFAULT_STORAGE = { 
-  zone: 'G', 
-  zoneName: 'General Storage', 
-  default: 'G-1-1-1',
-  description: 'General purpose storage'
-};
 
 // Condition options for receiving
 const RECEIVE_CONDITION_OPTIONS = [
@@ -96,21 +65,6 @@ const STATUS_COLORS = {
     'stored': { bg: 'bg-purple-100', text: 'text-purple-700', label: 'In Storage' },
     'damaged_report': { bg: 'bg-red-100', text: 'text-red-700', label: 'Damaged' },
     'shortage_report': { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Shortage' }
-};
-
-const ZONE_COLORS = {
-  'P': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
-  'C': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
-  'W': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
-  'A': { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
-  'L': { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
-  'Y20': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
-  'Y40': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
-  'B': { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-200' },
-  'T': { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
-  'S': { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
-  'DZ': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
-  'G': { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' },
 };
 
 // ==================== HELPER FUNCTIONS ====================
@@ -169,63 +123,6 @@ const calculateTotals = (item) => {
   });
   
   return { totalWeight, totalVolume, totalItems, packageCount };
-};
-
-/**
- * Get package types from shipment
- */
-const getPackageTypes = (shipment) => {
-  const packages = extractPackages(shipment);
-  
-  if (!packages || packages.length === 0) {
-    return ['carton'];
-  }
-  
-  const types = packages.map(p => p.packagingType || p.packageType || 'carton');
-  return [...new Set(types)];
-};
-
-/**
- * Get suggested storage based on package types and condition
- */
-const getSuggestedStorage = (shipment, condition = 'Good') => {
-  if (condition === 'Damaged' || condition === 'Partial') {
-    return {
-      location: DAMAGE_ZONE.default,
-      zone: DAMAGE_ZONE.zoneName,
-      zoneCode: DAMAGE_ZONE.zone,
-      packageTypes: getPackageTypes(shipment),
-      description: DAMAGE_ZONE.description,
-      isDamageZone: true
-    };
-  }
-  
-  const packageTypes = getPackageTypes(shipment);
-  
-  if (packageTypes.length === 1) {
-    const map = PACKAGE_STORAGE_MAP[packageTypes[0]] || DEFAULT_STORAGE;
-    return {
-      location: map.default,
-      zone: map.zoneName,
-      zoneCode: map.zone,
-      packageTypes: packageTypes,
-      description: map.description,
-      isDamageZone: false
-    };
-  } else {
-    return {
-      location: 'M-1-1-1',
-      zone: 'Mixed Storage Zone',
-      zoneCode: 'M',
-      packageTypes: packageTypes,
-      description: 'Multi-type package storage',
-      isDamageZone: false
-    };
-  }
-};
-
-const getZoneColorClass = (zoneCode) => {
-  return ZONE_COLORS[zoneCode] || ZONE_COLORS['G'];
 };
 
 const formatLocationDisplay = (location) => {
@@ -559,8 +456,7 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
   // Initialize
   useEffect(() => {
     if (mode === 'receive') {
-      const suggested = getSuggestedStorage(data, condition);
-      setLocation(suggested.location);
+      setLocation('');
       setSelectedPackages(packages.map((_, idx) => idx));
     } else if (mode === 'inspect' && packages.length > 0) {
       if (receipt?.inspection?.details) {
@@ -580,13 +476,6 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
       }
     }
   }, [data, mode, condition, receipt, packages]);
-
-  useEffect(() => {
-    if (mode === 'receive' && data) {
-      const suggested = getSuggestedStorage(data, condition);
-      setLocation(suggested.location);
-    }
-  }, [condition, data, mode]);
 
   // Toggle package selection
   const togglePackage = (index) => {
@@ -778,13 +667,8 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
         onComplete({ nextTab: 'damage', status: 'received', data: result.data, isDamaged: true });
       } else {
         toast.success(`Shipment received successfully at ${formatLocationDisplay(location)}`);
-        const queueResult = await addToQueue(result.data?.shipmentId || data._id);
-        if (!queueResult.success) {
-          console.error('Failed to add received shipment to queue:', queueResult.message);
-          toast.warning(queueResult.message || 'Shipment received, but it could not be added to the pending queue automatically.');
-        }
-        // Route good items to pending tab
-        onComplete({ nextTab: 'pending', status: 'received', data: result.data, isDamaged: false });
+        // Keep received cargo visible for inspection before it enters the queue.
+        onComplete({ nextTab: 'received', status: 'received', data: result.data, isDamaged: false });
       }
       onClose();
     } else {
@@ -925,9 +809,6 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
     );
   }
 
-  const suggested = getSuggestedStorage(data, condition);
-  const zoneColor = getZoneColorClass(suggested.zoneCode);
-
   // RECEIVE STEP
   if (step === 'receive') {
     return (
@@ -1007,29 +888,6 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
               </div>
             </div>
 
-            {/* Auto-Suggested Location */}
-            <div className={`${zoneColor.bg} ${zoneColor.border} border rounded-lg p-4 mb-4`}>
-              <div className="flex items-start">
-                {condition === 'Damaged' || condition === 'Partial' ? (
-                  <AlertOctagon className={`h-5 w-5 ${zoneColor.text} mt-0.5 mr-3`} />
-                ) : (
-                  <Map className={`h-5 w-5 ${zoneColor.text} mt-0.5 mr-3`} />
-                )}
-                <div className="flex-1">
-                  <p className={`text-sm font-medium ${zoneColor.text}`}>
-                    {condition === 'Damaged' || condition === 'Partial' 
-                      ? '🚨 DAMAGE ZONE - Inspection Required' 
-                      : 'Suggested Storage Location'}
-                  </p>
-                  <p className={`text-xs ${zoneColor.text} mt-1`}>{suggested.description}</p>
-                  <div className="mt-2">
-                    <span className="text-gray-600 text-xs">Location:</span>
-                    <span className={`ml-1 font-medium ${zoneColor.text}`}>{suggested.location}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Package Selection */}
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
@@ -1045,12 +903,8 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
               </div>
               <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-2">
                 {packages.map((pkg, idx) => {
-                  const storage = PACKAGE_STORAGE_MAP[pkg.packagingType || pkg.packageType] || DEFAULT_STORAGE;
-                  const pkgZoneColor = getZoneColorClass(storage.zone);
                   return (
-                    <label key={idx} className={`flex items-start p-2 rounded-lg cursor-pointer transition-colors ${
-                      selectedPackages.includes(idx) ? pkgZoneColor.bg : 'hover:bg-gray-50'
-                    }`}>
+                    <label key={idx} className={`flex items-start p-2 rounded-lg cursor-pointer transition-colors ${selectedPackages.includes(idx) ? 'bg-orange-50' : 'hover:bg-gray-50'}`}>
                       <input
                         type="checkbox"
                         checked={selectedPackages.includes(idx)}
@@ -1060,7 +914,7 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
                       <div className="ml-3 flex-1">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">{pkg.description || 'Package'}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${pkgZoneColor.bg} ${pkgZoneColor.text}`}>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
                             {pkg.packagingType || pkg.packageType || 'carton'}
                           </span>
                         </div>
@@ -1106,25 +960,12 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E67E22] focus:border-transparent"
-                    readOnly={condition === 'Damaged' || condition === 'Partial'}
                   />
-                  {condition !== 'Damaged' && condition !== 'Partial' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const suggested = getSuggestedStorage(data, condition);
-                        setLocation(suggested.location);
-                      }}
-                      className="ml-2 px-3 py-2 text-xs bg-gray-100 rounded-lg hover:bg-gray-200 whitespace-nowrap"
-                    >
-                      Use Suggested
-                    </button>
-                  )}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
                   {condition === 'Damaged' || condition === 'Partial' 
-                    ? 'Damage Zone - Fixed location for damaged goods'
-                    : 'Format: Zone-Aisle-Rack-Bin (e.g., P-1-1-1)'}
+                    ? 'Enter the assigned damage-storage location.'
+                    : 'Format: Zone-Aisle-Rack-Bin (e.g., A-1-1-1)'}
                 </p>
               </div>
 
@@ -1488,6 +1329,7 @@ export default function WarehousePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('expected');
+  const autoSelectedReceivedTab = useRef(false);
   const [expectedShipments, setExpectedShipments] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [queueData, setQueueData] = useState(null);
@@ -1556,7 +1398,7 @@ const handleConfirmDelete = async () => {
 
   useEffect(() => {
     const requestedTab = searchParams.get('tab');
-    if (requestedTab === 'expected' || requestedTab === 'pending' || requestedTab === 'damage') {
+    if (requestedTab === 'expected' || requestedTab === 'received' || requestedTab === 'pending' || requestedTab === 'damage') {
       setActiveTab(requestedTab);
     }
   }, [searchParams]);
@@ -1564,10 +1406,11 @@ const handleConfirmDelete = async () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [expectedCountResult, pendingCountResult, damagedCountResult] = await Promise.all([
+      const [expectedCountResult, pendingCountResult, damagedCountResult, receivedCountResult] = await Promise.all([
         getExpectedShipments({ page: 1, limit: 1 }),
         getConsolidationQueue(),
-        getWarehouseReceipts({ page: 1, limit: 1, status: 'damaged_report' })
+        getWarehouseReceipts({ page: 1, limit: 1, status: 'damaged_report' }),
+        getWarehouseReceipts({ page: 1, limit: 1, status: 'received' })
       ]);
 
       const expectedCount = expectedCountResult.success
@@ -1581,13 +1424,28 @@ const handleConfirmDelete = async () => {
       const damagedCount = damagedCountResult.success
         ? (damagedCountResult.pagination?.total ?? damagedCountResult.data?.length ?? 0)
         : 0;
+      const receivedCount = receivedCountResult.success
+        ? (receivedCountResult.pagination?.total ?? receivedCountResult.data?.length ?? 0)
+        : 0;
 
       setStats(prev => ({
         ...prev,
         expected: expectedCount,
+        received: receivedCount,
         pending: pendingCount,
         damaged: damagedCount
       }));
+
+      if (
+        !autoSelectedReceivedTab.current &&
+        !searchParams.get('tab') &&
+        activeTab === 'expected' &&
+        expectedCount === 0 &&
+        receivedCount > 0
+      ) {
+        autoSelectedReceivedTab.current = true;
+        setActiveTab('received');
+      }
 
         if (activeTab === 'expected') {
             const result = await getExpectedShipments();
@@ -1621,9 +1479,9 @@ setStats(prev => ({
   consolidated: totalGroups
 }));
             }
-        } else if (activeTab === 'damage') {
-            // Load all receipts and filter for damaged ones
-            const result = await getWarehouseReceipts({ limit: 100 });
+        } else if (activeTab === 'received' || activeTab === 'damage') {
+            const requestedStatus = activeTab === 'received' ? 'received' : 'damaged_report';
+            const result = await getWarehouseReceipts({ page: 1, limit: 100, status: requestedStatus });
             if (result.success) {
                 const processedReceipts = result.data.map(receipt => {
                     const packages = extractPackages(receipt);
@@ -1682,7 +1540,7 @@ setStats({
     } finally {
         setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, searchParams]);
 
   useEffect(() => {
     loadData();
@@ -1918,6 +1776,10 @@ const handleInspectClick = (receipt) => {
             <Package className="h-4 w-4 inline mr-1" />
             Expected ({stats.expected} shipments)
           </TabButton>
+          <TabButton active={activeTab === 'received'} onClick={() => setActiveTab('received')}>
+            <CheckCircle className="h-4 w-4 inline mr-1" />
+            Received ({stats.received} shipments)
+          </TabButton>
           <TabButton active={activeTab === 'pending'} onClick={() => setActiveTab('pending')}>
             <Ship className="h-4 w-4 inline mr-1" />
             Pending ({stats.pending} shipments)
@@ -1932,9 +1794,9 @@ const handleInspectClick = (receipt) => {
         <FilterBar
           filters={filters}
           setFilters={setFilters}
-          total={activeTab === 'expected' ? filteredExpected.length : activeTab === 'pending' ? filteredQueueGroups.reduce((sum, group) => sum + (group.count || group.shipments?.length || 0), 0) : filteredReceipts.filter(isDamagedReceipt).length}
-          placeholder={activeTab === 'expected' ? "Search by tracking, shipment..." : "Search by destination, tracking..."}
-          totalLabel={activeTab === 'damage' ? 'receipts' : 'shipments'}
+          total={activeTab === 'expected' ? filteredExpected.length : activeTab === 'pending' ? filteredQueueGroups.reduce((sum, group) => sum + (group.count || group.shipments?.length || 0), 0) : activeTab === 'received' ? filteredReceipts.filter(receipt => receipt.status === 'received').length : filteredReceipts.filter(isDamagedReceipt).length}
+          placeholder={activeTab === 'expected' || activeTab === 'received' ? "Search by tracking, shipment..." : "Search by destination, tracking..."}
+          totalLabel={activeTab === 'damage' || activeTab === 'received' ? 'receipts' : 'shipments'}
         />
 
         {/* Content */}
@@ -1948,15 +1810,12 @@ const handleInspectClick = (receipt) => {
             <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
               <Package className="h-12 w-12 mx-auto text-gray-400 mb-3" />
               <h3 className="text-sm font-medium text-gray-900">No expected shipments</h3>
-              <p className="text-xs text-gray-500 mt-1">All clear! No shipments waiting to be received.</p>
+              <p className="text-xs text-gray-500 mt-1">All clear! No shipments waiting to be received. Previously received shipments appear in the Received tab.</p>
             </div>
           ) : (
             <div className="grid gap-4">
               {filteredExpected.map((shipment) => {
                 const packages = shipment._packages || extractPackages(shipment);
-                const packageTypes = getPackageTypes(shipment);
-                const suggested = getSuggestedStorage(shipment, 'Good');
-                const zoneColor = getZoneColorClass(suggested.zoneCode);
                 const totals = calculateTotals(shipment);
                 
                 return (
@@ -1964,16 +1823,11 @@ const handleInspectClick = (receipt) => {
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-3">
-                        <div className={`p-2 ${zoneColor.bg} rounded-lg`}>
-                          <Package className={`h-5 w-5 ${zoneColor.text}`} />
+                        <div className="p-2 bg-gray-100 rounded-lg">
+                          <Package className="h-5 w-5 text-gray-600" />
                         </div>
                         <div>
-                          <div className="flex items-center space-x-2">
-                            <p className="text-sm font-medium text-gray-900">{shipment.trackingNumber || shipment.shipmentNumber}</p>
-                            <span className={`px-2 py-0.5 text-xs rounded-full ${zoneColor.bg} ${zoneColor.text}`}>
-                              {suggested.zoneCode}
-                            </span>
-                          </div>
+                          <p className="text-sm font-medium text-gray-900">{shipment.trackingNumber || shipment.shipmentNumber}</p>
                           <p className="text-xs text-gray-500">{shipment.shipmentNumber}</p>
                         </div>
                       </div>
@@ -2012,10 +1866,8 @@ const handleInspectClick = (receipt) => {
                     {/* Package Types */}
                     <div className="flex flex-wrap gap-2 mb-3">
                       {packages.map((pkg, idx) => {
-                        const storage = PACKAGE_STORAGE_MAP[pkg.packagingType || pkg.packageType] || DEFAULT_STORAGE;
-                        const pkgZoneColor = getZoneColorClass(storage.zone);
                         return (
-                          <span key={idx} className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${pkgZoneColor.bg} ${pkgZoneColor.text}`}>
+                          <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
                             <Tag className="h-3 w-3 mr-1" />
                             {pkg.packagingType || pkg.packageType || 'carton'} x{pkg.quantity || 1}
                           </span>
@@ -2023,14 +1875,7 @@ const handleInspectClick = (receipt) => {
                       })}
                     </div>
 
-                    {/* Suggested Location */}
-                    <div className={`p-2 rounded-lg ${zoneColor.bg} bg-opacity-50 flex items-center justify-between`}>
-                      <div className="flex items-center text-xs">
-                        <Map className={`h-3.5 w-3.5 mr-1.5 ${zoneColor.text}`} />
-                        <span className={zoneColor.text}>
-                          Suggested: <span className="font-medium">{suggested.zone}</span> • {suggested.location}
-                        </span>
-                      </div>
+                    <div className="flex justify-end">
                       <button
                         onClick={() => handleReceiveClick(shipment)}
                         className="text-xs bg-[#E67E22] text-white px-4 py-1.5 rounded-lg hover:bg-[#d35400] transition-colors"
@@ -2109,6 +1954,54 @@ const handleInspectClick = (receipt) => {
                     </div>
 
                    
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : activeTab === 'received' ? (
+          filteredReceipts.filter(receipt => receipt.status === 'received').length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+              <CheckCircle className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+              <h3 className="text-sm font-medium text-gray-900">No received shipments awaiting inspection</h3>
+              <p className="text-xs text-gray-500 mt-1">Newly received cargo appears here until it is inspected.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredReceipts.filter(receipt => receipt.status === 'received').map(receipt => {
+                const packages = receipt._packages || extractPackages(receipt);
+                const totals = calculateTotals(receipt);
+
+                return (
+                  <div key={receipt._id} className="bg-white rounded-xl border border-gray-200 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {receipt.shipmentId?.trackingNumber || receipt.trackingNumber || 'No tracking number'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">Receipt: {receipt.receiptNumber || 'N/A'}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {receipt.customerId?.companyName || [receipt.customerId?.firstName, receipt.customerId?.lastName].filter(Boolean).join(' ') || 'Unknown customer'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {packages.length} package(s) · {totals.totalItems} items · {totals.totalWeight.toFixed(1)} kg · Received {formatDate(receipt.receivedAt || receipt.receivedDate || receipt.createdAt)}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => handleViewDetails(receipt)}
+                          className="text-xs border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50"
+                        >
+                          Details
+                        </button>
+                        <button
+                          onClick={() => handleInspectClick(receipt)}
+                          className="text-xs bg-[#E67E22] text-white px-3 py-1.5 rounded-lg hover:bg-[#d35400]"
+                        >
+                          Inspect
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 );
               })}

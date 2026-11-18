@@ -26,17 +26,16 @@ const isTimeoutError = (error) => {
 
 const fetchBookingForRecovery = async (bookingId) => {
   const endpoints = [
-    `/booking/${bookingId}`,
+    `/admin/bookings/${bookingId}/quote-state`,
     `/bookings/${bookingId}`,
-    `/my-bookings/${bookingId}`,
-    `/bookings/my-bookings/${bookingId}`
+    `/my-bookings/${bookingId}`
   ];
 
   for (const endpoint of endpoints) {
     try {
       const response = await axiosInstance.get(endpoint);
       if (response?.data?.success && response?.data?.data) {
-        return response.data.data;
+        return response.data.data.booking || response.data.data;
       }
     } catch (recoveryError) {
       // Try next endpoint silently.

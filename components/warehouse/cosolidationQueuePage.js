@@ -895,7 +895,7 @@ export default function ConsolidationQueuePage() {
                 <RefreshCw className={`h-5 w-5 text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
               <Link
-                href="/warehouse/consolidations"
+                href="/warehouse/all-consolidation"
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm flex items-center"
               >
                 <Eye className="h-4 w-4 mr-2" />

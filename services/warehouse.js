@@ -66,10 +66,10 @@ export const getShipmentById = async (shipmentId) => {
 
 export const getExpectedShipments = async (params = {}) => {
   try {
-    // limit প্যারামিটার বাদ দিয়ে শুধু page পাঠাচ্ছি
+    // Respect the caller's page size so count-only requests don't fetch a full page.
     const queryParams = new URLSearchParams({
       page: params.page || 1,
-      // limit: params.limit || 100, // limit completely remove করে দিচ্ছি
+      limit: params.limit || 20,
       ...(params.status && { status: params.status }),
       ...(params.search && { search: params.search })
     });

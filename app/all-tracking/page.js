@@ -3,14 +3,14 @@ import React, { useEffect } from 'react'
 import { getAuthToken } from '@/utils/SessionHelper';
 import { useRouter } from 'next/navigation';
 import  AllTracking from '@/components/allTracking'
-function page() {
+function Page() {
   const router = useRouter();
   useEffect(() => {
     const token = getAuthToken();
     if (!token) {
       router.push('/');
     }
-  }, []);
+  }, [router]);
   return (
     <div>
       <AllTracking />
@@ -18,4 +18,4 @@ function page() {
   )
 }
 
-export default page
+export default Page
