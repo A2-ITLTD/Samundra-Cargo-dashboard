@@ -1387,6 +1387,7 @@ if (!finalTrackingNumber) {
                         value={item.weight}
                         onChange={(e) => handlePackageChange(index, 'weight', parseFloat(e.target.value) || 0)}
                         onWheel={(e) => { e.preventDefault(); e.currentTarget.blur(); }}
+                        
                         min="0.1"
                         step="0.1"
                         required

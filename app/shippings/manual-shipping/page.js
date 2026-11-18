@@ -2834,6 +2834,7 @@ const UpdateStatusModal = ({
     new Date().toTimeString().slice(0, 5)
   );
   const [remarks, setRemarks] = useState("");
+  const [location, setLocation] = useState(""); 
   const [isUpdating, setIsUpdating] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -2932,6 +2933,7 @@ const UpdateStatusModal = ({
       const payload = {
         status: selectedStatus,
         notes: remarks,
+        location: location.trim() || "", 
         updatedBy: "admin",
         updateDateTime,
         timestamp: localTimestamp.toISOString(), // Store as ISO string for proper timezone handling
@@ -3152,6 +3154,19 @@ const UpdateStatusModal = ({
 
             
           </div>
+          {/* LOCATION */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Location
+  </label>
+  <input
+    type="text"
+    value={location}
+    onChange={(e) => setLocation(e.target.value)}
+    placeholder="e.g., Shanghai Port, China"
+    className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+  />
+</div>
 
           {/* REMARKS */}
           <div>
@@ -3206,6 +3221,12 @@ const UpdateStatusModal = ({
           <div className="bg-blue-50 p-3 rounded-lg text-left">
             <p className="text-xs text-gray-500 mb-2">Update: {updateDate} </p>
           </div>
+          {location && (
+  <div className="bg-blue-50 p-3 rounded-lg text-left">
+    <p className="text-xs text-gray-500 mb-1">Location:</p>
+    <p className="text-sm text-gray-700">📍 {location}</p>
+  </div>
+)}
 
           {remarks && (
             <div className="bg-gray-50 p-3 rounded-lg text-left">
@@ -4281,6 +4302,10 @@ const ShipmentDetailsModal = ({ isOpen, onClose, shipment, onStatusUpdated }) =>
                           {event.description && (
                             <p className="text-xs text-gray-500 mt-1">{event.description}</p>
                           )}
+
+                          {event.location && (
+  <p className="text-xs text-gray-500 mt-1">📍 {event.location}</p>
+)}
                           {event.timestamp && (
                             <p className="text-xs text-gray-400 mt-1">
                               {new Date(event.timestamp).toLocaleString()}
