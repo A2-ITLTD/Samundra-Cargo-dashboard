@@ -305,9 +305,12 @@ const handleInspectionChange = (field, value) => {
     // Handle condition field specifically
     if (field === 'condition') {
       console.log('🎯 Setting condition to:', value);
+      const isGood = value === 'Good';
       updated[currentPackageIndex] = {
         ...updated[currentPackageIndex],
-        condition: value  // ✅ Directly set the condition
+        condition: value,
+        passed: isGood ? maxQuantity : 0,
+        failed: isGood ? 0 : maxQuantity
       };
     }
     else if (field === 'passed' || field === 'failed') {

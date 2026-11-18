@@ -1,5 +1,11 @@
 import axiosInstance from '@/lib/axiosInstance';
-import Cookies from 'js-cookie';
+import {
+  setAuthToken,
+  setUserDetails,
+  getUserDetails,
+  clearAllSessions,
+  isAuthenticated as isSessionAuthenticated,
+} from '@/utils/SessionHelper';
 
 // ==================== AUTHENTICATION ====================
 
@@ -9,14 +15,10 @@ export const login = async (email, password) => {
     const response = await axiosInstance.post('/login', { email, password });
     
     if (response.data.success && response.data.token) {
-      // Store in cookies
-      Cookies.set('authToken', response.data.token, { expires: 7 });
-      Cookies.set('token', response.data.token, { expires: 7 });
-      const userData = JSON.stringify(response.data.data);
-      Cookies.set('user', userData, { expires: 7 });
-      Cookies.set('userDetails', userData, { expires: 7 });
+      setAuthToken(response.data.token);
+      setUserDetails(response.data.data);
     }
-    
+
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Login failed' };
@@ -39,11 +41,10 @@ export const verifyOTP = async (email, otp) => {
     const response = await axiosInstance.post('/customer/verify-otp', { email, otp });
     
     if (response.data.success && response.data.token) {
-      Cookies.set('authToken', response.data.token, { expires: 7 });
-      Cookies.set('token', response.data.token, { expires: 7 });
-      Cookies.set('user', JSON.stringify(response.data.data), { expires: 7 });
+      setAuthToken(response.data.token);
+      setUserDetails(response.data.data);
     }
-    
+
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'OTP verification failed' };
@@ -104,10 +105,7 @@ export const resendResetOTP = async (email) => {
 };
 // Logout
 export const logout = () => {
-  Cookies.remove('authToken');
-  Cookies.remove('token');
-  Cookies.remove('userDetails');
-  Cookies.remove('user');
+  clearAllSessions();
 };
 
 // ==================== PROTECTED ROUTES ====================
@@ -129,11 +127,10 @@ export const updateProfile = async (userData) => {
     
     // Update stored user data
     if (response.data.success) {
-      const currentUser = JSON.parse(Cookies.get('user') || '{}');
-      const updatedUser = { ...currentUser, ...response.data.data };
-      Cookies.set('user', JSON.stringify(updatedUser), { expires: 7 });
+      const currentUser = getUserDetails() || {};
+      setUserDetails({ ...currentUser, ...response.data.data });
     }
-    
+
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to update profile' };
@@ -176,9 +173,14 @@ export const createStaff = async (staffData) => {
 };
 
 // Get All Users (Admin Only)
-export const getAllUsers = async () => {
+export const getAllUsers = async (params = {}) => {
   try {
-    const response = await axiosInstance.get('/admin/users');
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') query.set(key, value);
+    });
+    const suffix = query.toString();
+    const response = await axiosInstance.get(`/admin/users${suffix ? `?${suffix}` : ''}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to get users' };
@@ -216,9 +218,14 @@ export const deleteUser = async (userId) => {
 };
 
 // Get Users By Role (Admin Only)
-export const getUsersByRole = async (role) => {
+export const getUsersByRole = async (role, params = {}) => {
   try {
-    const response = await axiosInstance.get(`/admin/users/role/${role}`);
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') query.set(key, value);
+    });
+    const suffix = query.toString();
+    const response = await axiosInstance.get(`/admin/users/role/${role}${suffix ? `?${suffix}` : ''}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Failed to get users by role' };
@@ -242,23 +249,10 @@ export const createOrGetCustomerByAdmin = async (customerData) => {
 // ==================== HELPER FUNCTIONS ====================
 
 // Get Current User from Cookie
-export const getCurrentUser = () => {
-  if (typeof window === 'undefined') return null;
-  
-  const userStr = Cookies.get('user');
-  if (!userStr) return null;
-  
-  try {
-    return JSON.parse(userStr);
-  } catch {
-    return null;
-  }
-};
+export const getCurrentUser = () => getUserDetails();
 
 // Check if User is Authenticated
-export const isAuthenticated = () => {
-  return !!(Cookies.get('authToken') || Cookies.get('token'));
-};
+export const isAuthenticated = () => isSessionAuthenticated();
 
 // Check if User has Specific Role
 export const hasRole = (role) => {
@@ -268,7 +262,8 @@ export const hasRole = (role) => {
 
 // Check if User is Admin
 export const isAdmin = () => {
-  return hasRole('admin');
+  const user = getCurrentUser();
+  return user?.role === 'admin' || user?.role === 'super_admin';
 };
 
 // Check if User is Customer
@@ -280,4 +275,13 @@ export const isCustomer = () => {
 export const isStaff = () => {
   const user = getCurrentUser();
   return user?.role === 'operations' || user?.role === 'warehouse';
+};
+
+export const getUserStats = async () => {
+  try {
+    const response = await axiosInstance.get('/admin/users/stats');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Failed to get user statistics' };
+  }
 };

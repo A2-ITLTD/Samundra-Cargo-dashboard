@@ -89,7 +89,7 @@ const CustomersPage = () => {
   const fetchAllUsers = async () => {
     setLoading(true);
     try {
-      const response = await getAllUsers();
+      const response = await getAllUsers({ role: 'customer', limit: 100 });
       console.log('API Response:', response);
       
       // Extract users data properly

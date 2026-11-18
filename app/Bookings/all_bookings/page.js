@@ -3,14 +3,14 @@ import AllBookings from "@/components/bookings/allBookins"
 import React, { useEffect } from 'react'
 import { getAuthToken } from '@/utils/SessionHelper';
 import { useRouter } from 'next/navigation';
-function page() {
+function Page() {
     const router = useRouter();
   useEffect(() => {  // ← এই পুরো useEffect যোগ করুন
     const token = getAuthToken();
     if (!token) {
       router.push('/');
     }
-  }, []);
+  }, [router]);
   return (
     <div>
       <AllBookings/>
@@ -18,4 +18,4 @@ function page() {
   )
 }
 
-export default page
+export default Page

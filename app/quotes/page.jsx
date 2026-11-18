@@ -2,8 +2,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { getAuthToken } from '@/utils/SessionHelper';
+import { BASE_URL } from '@/utils/confiq';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const API_URL = BASE_URL;
 
 export default function QuotesPage() {
   const [quotes, setQuotes] = useState([]);

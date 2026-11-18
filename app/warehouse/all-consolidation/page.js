@@ -89,7 +89,7 @@ const CONSOLIDATION_STATUSES = [
   { value: 'loaded_into_container', label: 'Loaded into Container', color: 'red', icon: Send },
   { value: 'container_sealed', label: 'Container Sealed', color: 'indigo', icon: Package },
   { value: 'departed_port_of_origin', label: 'Departed Port of Origin', color: 'amber', icon: Send },
-  { value: 'in_transit_sea_freight', label: 'In Transit (Sea Freight)', color: 'yellow', icon: Truck },
+  { value: 'in_transit_sea_freight', label: 'In Transit', color: 'yellow', icon: Truck },
   { value: 'arrived_at_destination_port', label: 'Arrived at Destination Port', color: 'green', icon: CheckCircle },
   { value: 'under_customs_clearance', label: 'Under Customs Clearance', color: 'emerald', icon: Shield },
   { value: 'customs_cleared', label: 'Customs Cleared', color: 'emerald', icon: Shield },
@@ -108,7 +108,7 @@ const CONSOLIDATION_TIMELINE_STATUS_STEPS = [
   { value: 'loaded_into_container', label: 'Loaded into Container', color: 'red', icon: Send },
   { value: 'container_sealed', label: 'Container Sealed', color: 'indigo', icon: Package },
   { value: 'departed_port_of_origin', label: 'Departed Port of Origin', color: 'amber', icon: Send },
-  { value: 'in_transit_sea_freight', label: 'In Transit (Sea Freight)', color: 'yellow', icon: Truck },
+  { value: 'in_transit_sea_freight', label: 'In Transit', color: 'yellow', icon: Truck },
   { value: 'arrived_at_destination_port', label: 'Arrived at Destination Port', color: 'green', icon: CheckCircle },
   { value: 'under_customs_clearance', label: 'Under Customs Clearance', color: 'emerald', icon: Shield },
   { value: 'customs_cleared', label: 'Customs Cleared', color: 'emerald', icon: Shield },
@@ -328,8 +328,28 @@ const consolidationMatchesSearch = (consolidation, searchTerm) => {
 
 // ==================== SHIPMENT CARD (for items array) ====================
 
-const ShipmentItemCard = ({ item }) => {
+const ShipmentItemCard = ({ item, shipments = [] }) => {
   const [expanded, setExpanded] = useState(false);
+  const descriptionTracking =
+    (item.description || '').match(/Shipment\s+(CLG-?[A-Za-z0-9]+)/i)?.[1] || null;
+  const trackingNumber =
+    item.trackingNumber ||
+    item.shipmentId?.trackingNumber ||
+    descriptionTracking;
+  const shipmentIdValue =
+    item.shipmentId && typeof item.shipmentId === 'object'
+      ? item.shipmentId._id
+      : item.shipmentId;
+  const matchedShipment = shipments.find(
+    (shipment) =>
+      shipment?.trackingNumber === trackingNumber ||
+      String(shipment?._id) === String(shipmentIdValue),
+  );
+  const shipmentNumber =
+    item.shipmentNumber ||
+    item.shipmentId?.shipmentNumber ||
+    matchedShipment?.shipmentNumber ||
+    null;
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-all mb-2">
@@ -345,10 +365,12 @@ const ShipmentItemCard = ({ item }) => {
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-mono text-xs font-medium">
-                {item.shipmentId ? `SHP-${item.shipmentId.slice(-6)}` : 'N/A'}
+                {shipmentNumber ||
+                  trackingNumber ||
+                  (shipmentIdValue ? `ID-${String(shipmentIdValue).slice(-6)}` : 'N/A')}
               </span>
               <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded-full">
-                {item.quantity || 1} pkg
+                {item.quantity || 0} pkg
               </span>
             </div>
             <div className="text-[10px] text-gray-600 mt-0.5">
@@ -394,8 +416,16 @@ const ShipmentItemCard = ({ item }) => {
               <p className="font-medium">{item.description || 'N/A'}</p>
             </div>
             <div className="bg-white p-1.5 rounded col-span-2">
+              <span className="text-gray-500">Tracking Number:</span>
+              <p className="font-mono font-medium">{trackingNumber || 'N/A'}</p>
+            </div>
+            <div className="bg-white p-1.5 rounded col-span-2">
+              <span className="text-gray-500">Shipment Number:</span>
+              <p className="font-mono font-medium">{shipmentNumber || 'N/A'}</p>
+            </div>
+            <div className="bg-white p-1.5 rounded col-span-2">
               <span className="text-gray-500">Shipment ID:</span>
-              <p className="font-mono font-medium">{item.shipmentId || 'N/A'}</p>
+              <p className="font-mono font-medium">{shipmentIdValue || 'N/A'}</p>
             </div>
           </div>
         </div>
@@ -541,16 +571,10 @@ const ShipmentCard = ({ shipment, consolidationId, consolidationStatus, onShipme
     }
   }, [shipment]);
 
-  // Auto-refresh when consolidation status changes
+  // Fetch tracking on mount and whenever the consolidation status changes
   useEffect(() => {
-    console.log('🔄 Consolidation status changed, refreshing tracking:', consolidationStatus);
     memoizedFetchTrackingStatus();
   }, [consolidationStatus, memoizedFetchTrackingStatus]);
-
-  // Auto-fetch tracking status on mount
-  useEffect(() => {
-    memoizedFetchTrackingStatus();
-  }, [memoizedFetchTrackingStatus]);
 
 
 
@@ -872,42 +896,6 @@ const handleResume = async () => {
       {/* Expanded Details - same as before */}
       {expanded && (
         <div className="p-2 bg-gray-50 border-t">
-          {/* Tracking Timeline Section */}
-          {trackingData?.trackingHistory && trackingData.trackingHistory.length > 0 && (
-            <div className="mb-3">
-              <h4 className="text-[10px] font-semibold text-gray-700 mb-2 flex items-center">
-                <Clock className="h-3 w-3 mr-1 text-blue-500" />
-                Tracking Timeline
-              </h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {[...trackingData.trackingHistory]
-                  .sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date))
-                  .map((event, idx) => (
-                    <div key={idx} className="flex items-start space-x-2">
-                      <div className="w-1.5 h-1.5 mt-1 rounded-full bg-blue-500 flex-shrink-0"></div>
-                      <div className="flex-1">
-                        <p className="text-[10px] font-medium">
-                          {event.status?.replace(/_/g, ' ') || event.label || 'Update'}
-                        </p>
-                        {((event.status === 'container_sealed' || event.status === 'loaded') && event.description) && (
-                          <p className="text-[9px] text-gray-500">{event.description}</p>
-                        )}
-                        {event.location && (
-                          <p className="text-[9px] text-gray-400 flex items-center mt-0.5">
-                            <MapPin className="h-2 w-2 mr-0.5" />
-                            {event.location}
-                          </p>
-                        )}
-                        <p className="text-[8px] text-gray-400">
-                          {new Date(event.timestamp || event.date).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
           {/* Shipment Details */}
           <div className="grid grid-cols-2 gap-1.5 text-[10px] mb-2">
             <div className="bg-white p-1.5 rounded">
@@ -1146,23 +1134,31 @@ const FilterBar = ({ filters, onFilterChange, onClearFilters, totalCount }) => {
 
 // ==================== CONSOLIDATION CARD ====================
 
-const ConsolidationCard = ({ 
-  consolidation, 
-  onView, 
-  onEdit, 
-  onDelete, 
+const CardIconButton = ({ icon: Icon, label, onClick, tone }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    title={label}
+    aria-label={label}
+    className={`p-1.5 rounded-lg transition-colors ${tone}`}
+  >
+    <Icon className="h-3.5 w-3.5" />
+  </button>
+);
+
+const ConsolidationCard = ({
+  consolidation,
+  onView,
+  onEdit,
+  onDelete,
   onHoldConsolidation,
   onResumeConsolidation,
   onCancelConsolidation,
-  onStartConsolidation,
-  onCompleteConsolidation,
   onPickedUp,
-  onReadyForDispatch, 
   onLoadedClick,
   onContainerSealed,
   onDeparted,
   onInTransit,
-  onDispatch,
   onArrivedClick,
   onUnderCustomsCleared,
   onCustomsCleared,
@@ -1170,47 +1166,34 @@ const ConsolidationCard = ({
   onOutForDelivery,
   onDelivered,
   onComplete,
-  onShipmentStatusChange, 
-  searchTerm 
+  onShipmentStatusChange,
 }) => {
   const [showShipments, setShowShipments] = useState(false);
-  const [isJourneyExpanded, setIsJourneyExpanded] = useState(false);
+
   if (!consolidation) return null;
-  const journeyStatus = normalizeConsolidationTimelineStatus(consolidation.status);
-  const timelineJourneyStatus = normalizeConsolidationTimelineStatus(consolidation.status);
 
-  // Status Steps Definition
-  const getStatusSteps = () => {
-    return CONSOLIDATION_TIMELINE_STATUS_STEPS;
-  };
+  const rawStatus = consolidation.status || '';
+  const journeyStatus = normalizeConsolidationTimelineStatus(rawStatus);
+  const isCompleted = rawStatus === 'completed';
+  const specialStates = ['on_hold', 'cancelled', 'returned'];
+  const isSpecial = specialStates.includes(journeyStatus);
 
-  const statusSteps = getStatusSteps();
-
-  // on_hold / cancelled / returned sit at the END of the steps array. Using
-  // their index directly made "Done" include every prior step and the progress
-  // jump near the end (e.g. 88% while On Hold, Upcoming = Cancelled/Returned).
-  // For those states we anchor Done / Upcoming / progress to where the journey
-  // actually was (lastActiveStatus) while still showing the current state label.
-  const SPECIAL_CONSOLIDATION_STATES = ['on_hold', 'cancelled', 'returned'];
-  const isSpecialConsolidationState = SPECIAL_CONSOLIDATION_STATES.includes(timelineJourneyStatus);
-
-  // Index of the actual status — used only for the "Current" label/icon.
-  const currentStepIndex = Math.max(0, statusSteps.findIndex(step => step.value === timelineJourneyStatus));
-
-  // Journey anchor — where progress really is. For special states fall back to
-  // the status the consolidation held at before entering that state.
-  const journeyAnchorStatus = isSpecialConsolidationState
+  const statusSteps = [
+    ...CONSOLIDATION_TIMELINE_STATUS_STEPS.filter(
+      (step) => !specialStates.includes(step.value) && step.value !== 'completed',
+    ),
+    { value: 'completed', label: 'Completed', icon: Award, color: 'emerald' },
+  ];
+  const anchorStatus = isSpecial
     ? normalizeConsolidationTimelineStatus(consolidation.lastActiveStatus || 'pending')
-    : timelineJourneyStatus;
-  const journeyAnchorIndex = Math.max(0, statusSteps.findIndex(step => step.value === journeyAnchorStatus));
-
-  const previousSteps = isSpecialConsolidationState
-    ? statusSteps.slice(0, journeyAnchorIndex + 1) // the anchor was reached → done
-    : statusSteps.slice(0, currentStepIndex);
-  const nextSteps = statusSteps
-    .slice(journeyAnchorIndex + 1, journeyAnchorIndex + 3)
-    .filter(step => !SPECIAL_CONSOLIDATION_STATES.includes(step.value));
-  const progressPercent = Math.round(((journeyAnchorIndex + 1) / statusSteps.length) * 100);
+    : (isCompleted ? 'completed' : journeyStatus);
+  const anchorIndex = Math.max(0, statusSteps.findIndex((s) => s.value === anchorStatus));
+  const progressPercent = isCompleted
+    ? 100
+    : Math.round(((anchorIndex + 1) / statusSteps.length) * 100);
+  const currentLabel = isCompleted
+    ? 'Completed'
+    : (statusSteps.find((s) => s.value === journeyStatus)?.label || rawStatus.replace(/_/g, ' '));
 
   const origin = consolidation.originWarehouse || 'N/A';
   const destination = consolidation.destinationPort || 'N/A';
@@ -1219,623 +1202,194 @@ const ConsolidationCard = ({
   const totalVolume = getTotalVolume(consolidation);
   const totalWeight = getTotalWeight(consolidation);
   const containerType = getContainerType(consolidation);
-  const mainType = getMainType(consolidation);
-  
-  // ✅ Deduplicate shipments by ID to prevent duplicate display during reinspection
-  const deduplicateShipments = (shipsArray) => {
-    if (!Array.isArray(shipsArray)) return [];
+  const sealNumber = consolidation.sealNumber || consolidation.seal || consolidation.sealNo;
+
+  const deduplicateShipments = (arr) => {
+    if (!Array.isArray(arr)) return [];
     const seen = new Set();
-    return shipsArray.filter(ship => {
-      const shipId = ship?._id?.toString() || ship?.toString();
-      if (seen.has(shipId)) {
-        console.warn('⚠️ Duplicate shipment detected and filtered out:', shipId);
-        return false;
-      }
-      seen.add(shipId);
+    return arr.filter((s) => {
+      const id = s?._id?.toString() || s?.toString();
+      if (seen.has(id)) return false;
+      seen.add(id);
       return true;
     });
   };
-  
+
   const shipments = deduplicateShipments(consolidation.shipments || []);
   const firstShipment = shipments[0] || {};
   const items = consolidation.items || [];
+  const trackingNumber = firstShipment?.trackingNumber
+    || (firstShipment?._id ? `SHP-${String(firstShipment._id).slice(-6)}` : 'N/A');
 
-  const getStatusColor = () => {
-    const colors = {
-      draft: 'bg-gray-500',
-      in_progress: 'bg-blue-500',
-      consolidated: 'bg-purple-500',
-      ready_for_dispatch: 'bg-red-600',
-      loaded: 'bg-indigo-500',
-      dispatched: 'bg-amber-500',
-      in_transit: 'bg-yellow-500',
-      arrived: 'bg-green-500',
-      under_customs_cleared: 'bg-emerald-500',
-      customs_cleared: 'bg-emerald-500',
-      out_for_delivery: 'bg-sky-500',
-      delivered: 'bg-green-500',
-      on_hold: 'bg-red-600',
-      cancelled: 'bg-red-500'
-    };
-    return colors[journeyStatus] || 'bg-gray-500';
+  const nextActions = {
+    booking: { label: 'Picked Up', icon: Package, run: onPickedUp, tone: 'bg-blue-600 hover:bg-blue-700' },
+    received_at_warehouse: { label: 'Picked Up', icon: Package, run: onPickedUp, tone: 'bg-blue-600 hover:bg-blue-700' },
+    picked_up_from_warehouse: { label: 'Load Container', icon: Send, run: onLoadedClick, tone: 'bg-amber-600 hover:bg-amber-700' },
+    loaded_into_container: { label: 'Seal Container', icon: Package, run: onContainerSealed, tone: 'bg-indigo-600 hover:bg-indigo-700' },
+    container_sealed: { label: 'Depart Port', icon: Send, run: onDeparted, tone: 'bg-emerald-600 hover:bg-emerald-700' },
+    departed_port_of_origin: { label: 'In Transit', icon: Ship, run: onInTransit, tone: 'bg-cyan-600 hover:bg-cyan-700' },
+    in_transit_sea_freight: { label: 'Arrived', icon: Flag, run: onArrivedClick, tone: 'bg-green-600 hover:bg-green-700' },
+    arrived_at_destination_port: { label: 'Under Customs', icon: Shield, run: onUnderCustomsCleared, tone: 'bg-red-600 hover:bg-red-700' },
+    under_customs_clearance: { label: 'Customs Cleared', icon: ShieldCheck, run: onCustomsCleared, tone: 'bg-blue-600 hover:bg-blue-700' },
+    customs_cleared: { label: 'Unloaded', icon: Anchor, run: onUnloaded, tone: 'bg-teal-600 hover:bg-teal-700' },
+    unloaded_from_vessel: { label: 'Out for Delivery', icon: Truck, run: onOutForDelivery, tone: 'bg-purple-600 hover:bg-purple-700' },
+    out_for_delivery: { label: 'Delivered', icon: CheckCircle, run: onDelivered, tone: 'bg-green-600 hover:bg-green-700' },
+    delivered: { label: 'Complete', icon: Award, run: onComplete, tone: 'bg-green-600 hover:bg-green-700' },
   };
-
- // ConsolidationCard কম্পোনেন্টের ভিতরে getActionButton ফাংশনটি এইভাবে আপডেট করুন
-
- const getActionButton = () => {
-   switch(journeyStatus) {
-      case 'booking':
-      case 'draft':
-        return (
-          <button
-            onClick={() => onPickedUp(consolidation)}
-            className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 flex items-center whitespace-nowrap"
-          >
-            <Package className="h-3 w-3 mr-1" />
-            Picked up from Warehouse
-          </button>
-        );  
-      case 'received_at_warehouse':
-        return (
-          <button
-            onClick={() => onPickedUp(consolidation)}
-            className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 flex items-center whitespace-nowrap"
-          >
-            <Package className="h-3 w-3 mr-1" />
-            Picked up from Warehouse
-          </button>
-        );
-      case 'picked_up_from_warehouse':
-        return (
-          <button
-            onClick={() => onLoadedClick(consolidation)}
-            className="px-2 py-1 bg-amber-600 text-white rounded text-xs hover:bg-amber-700 flex items-center whitespace-nowrap"
-          >
-            <Send className="h-3 w-3 mr-1" />
-            Loaded into Container
-          </button>
-        );
-      case 'loaded_into_container':
-        return (
-          <button
-            onClick={() => onContainerSealed(consolidation)}
-            className="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 flex items-center whitespace-nowrap"
-          >
-            <Package className="h-3 w-3 mr-1" />
-            Container Sealed
-          </button>
-        );
-      case 'container_sealed':
-        return (
-          <button
-            onClick={() => onDeparted(consolidation)}
-            className="px-2 py-1 bg-emerald-600 text-white rounded text-xs hover:bg-emerald-700 flex items-center whitespace-nowrap"
-          >
-            <Send className="h-3 w-3 mr-1" />
-            Departed Port of Origin
-          </button>
-        );
-      case 'departed_port_of_origin':
-        return (
-          <button
-            onClick={() => onInTransit(consolidation)}
-            className="px-2 py-1 bg-cyan-600 text-white rounded text-xs hover:bg-cyan-700 flex items-center whitespace-nowrap"
-          >
-            <Ship className="h-3 w-3 mr-1" />
-            In Transit (Sea Freight)
-          </button>
-        );
-      case 'in_transit_sea_freight':
-        return (
-          <button
-            onClick={() => onArrivedClick(consolidation)}
-            className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 flex items-center whitespace-nowrap"
-          >
-            <Flag className="h-3 w-3 mr-1" />
-            Arrived at Destination Port
-          </button>
-        );
-      case 'arrived_at_destination_port':
-        return (
-          <button
-            onClick={() => onUnderCustomsCleared(consolidation)}
-            className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 flex items-center whitespace-nowrap"
-          >
-            <Shield className="h-3 w-3 mr-1" />
-            Under Customs Clearance
-          </button>
-        );
-      case 'under_customs_clearance':
-        return (
-          <button
-            onClick={() => onCustomsCleared(consolidation)}
-            className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 flex items-center whitespace-nowrap"
-          >
-            <ShieldCheck className="h-3 w-3 mr-1" />
-            Customs Cleared
-          </button>
-        );
-      case 'customs_cleared':
-        return (
-          <button
-            onClick={() => onUnloaded(consolidation)}
-            className="px-2 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700 flex items-center whitespace-nowrap"
-          >
-            <Anchor className="h-3 w-3 mr-1" />
-            Unloaded from Vessel
-          </button>
-        );
-      case 'unloaded_from_vessel':
-        return (
-          <button
-            onClick={() => onOutForDelivery(consolidation)}
-            className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 flex items-center whitespace-nowrap"
-          >
-            <Truck className="h-3 w-3 mr-1" />
-            Out for Delivery
-          </button>
-        );
-      case 'out_for_delivery':
-        return (
-          <button
-            onClick={() => onDelivered(consolidation)}
-            className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 flex items-center whitespace-nowrap"
-          >
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Delivered
-          </button>
-        );
-      case 'delivered':
-        return (
-          <button
-            onClick={() => onComplete(consolidation)}
-            className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 flex items-center whitespace-nowrap"
-          >
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Complete
-          </button>
-        );
-      case 'completed':
-        return (
-          <span className="px-2 py-1 bg-red-600 text-white rounded text-xs flex items-center whitespace-nowrap">
-            <Award className="h-3 w-3 mr-1" />
-            Complete
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
+  const nextAction = isCompleted ? null : nextActions[journeyStatus];
+  const isFinished = isCompleted;
+  const canManage = !isCompleted && journeyStatus !== 'cancelled';
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-200 self-start h-fit ring-1 ring-black/5">
-  {/* Header - Gradient with better contrast */}
-  <div className="p-4 bg-gradient-to-r from-[#7B95B5] via-[#4B76AD] to-[#214D85] text-gray-800">
-    <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-        <div className="p-1 bg-white/20 rounded-lg">
-          <Container className="h-3.5 w-3.5" />
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all overflow-hidden">
+      <div className="px-3 py-2.5 bg-gradient-to-r from-[#7B95B5] via-[#4B76AD] to-[#214D85]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 bg-white/20 rounded-lg shrink-0">
+              <Container className="h-3.5 w-3.5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-mono text-xs font-semibold text-white truncate">
+                {consolidation.consolidationNumber || String(consolidation._id || '').slice(-6)}
+              </p>
+              <p className="text-[10px] text-white/75 truncate">Track: {trackingNumber}</p>
+            </div>
+          </div>
+          <div className="shrink-0">{getStatusBadge(journeyStatus)}</div>
         </div>
-        <div className="flex flex-col">
-          <span className="font-mono text-xs font-semibold tracking-wide">
-            {consolidation.consolidationNumber || consolidation._id?.slice(-6)}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-medium truncate text-white/90">
-              Track: {firstShipment?.trackingNumber || (firstShipment?._id ? `SHP-${firstShipment._id?.slice(-6)}` : 'N/A')}
+      </div>
+
+      <div className="px-3 py-2.5 space-y-2.5">
+        <div className="flex items-center gap-2">
+          <span className="flex-1 min-w-0 text-[11px] font-medium text-gray-800 truncate" title={origin}>{origin}</span>
+          <div className="flex items-center gap-1 shrink-0 text-gray-400">
+            <span className="h-px w-4 bg-gray-300" />
+            <ChevronRight className="h-3.5 w-3.5" />
+            <span className="h-px w-4 bg-gray-300" />
+          </div>
+          <span className="flex-1 min-w-0 text-right text-[11px] font-medium text-gray-800 truncate" title={destination}>{destination}</span>
+        </div>
+
+        <div className="grid grid-cols-3 divide-x divide-gray-200 rounded-lg bg-gray-50 border border-gray-100">
+          <div className="px-1 py-1.5 text-center">
+            <p className="text-sm font-bold text-gray-800 leading-tight">{shipmentCount}</p>
+            <p className="text-[9px] uppercase tracking-wide text-gray-500">Shipments</p>
+          </div>
+          <div className="px-1 py-1.5 text-center">
+            <p className="text-sm font-bold text-gray-800 leading-tight">{totalPackages}</p>
+            <p className="text-[9px] uppercase tracking-wide text-gray-500">Packages</p>
+          </div>
+          <div className="px-1 py-1.5 text-center">
+            <p className="text-sm font-bold text-gray-800 leading-tight">{formatWeight(totalWeight, true)}</p>
+            <p className="text-[9px] uppercase tracking-wide text-gray-500">Weight</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-purple-100 bg-purple-50/70 px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Box className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+            <span className="text-[11px] font-semibold text-purple-800 whitespace-nowrap">{containerType}</span>
+          </div>
+          <div className="flex items-center gap-1.5 min-w-0 text-[10px] font-mono text-purple-700">
+            <span className="truncate" title={consolidation.containerNumber}>
+              {consolidation.containerNumber || 'No container'}
             </span>
-           
+            {sealNumber && (
+              <>
+                <span className="text-purple-300">|</span>
+                <span className="truncate" title={sealNumber}>{sealNumber}</span>
+              </>
+            )}
           </div>
         </div>
-      </div>
-      <div className="bg-[#103A73] backdrop-blur-sm px-2 py-0.5 rounded-full text-[10px] font-medium text-white">
-        {getMainTypeName(mainType)}
-      </div>
-    </div>
-    
-    {/* Quick Stats - Better layout */}
-    <div className="grid grid-cols-3 gap-2 mt-3 text-white">
-      <div className="bg-white/10 rounded-xl px-2.5 py-2 text-center backdrop-blur-sm border border-white/10">
-        <Ship className="h-3 w-3 mx-auto mb-1 opacity-90" />
-        <p className="text-[10px] opacity-90 uppercase tracking-wide ">Shipments</p>
-        <p className="text-sm font-bold">{shipmentCount}</p>
-      </div>
-      <div className="bg-white/10 rounded-xl px-2.5 py-2 text-center backdrop-blur-sm border border-white/10">
-        <Package className="h-3 w-3 mx-auto mb-1 opacity-90" />
-        <p className="text-[10px] opacity-90 uppercase tracking-wide">Packages</p>
-        <p className="text-sm font-bold">{totalPackages}</p>
-      </div>
-      <div className="bg-white/10 rounded-xl px-2.5 py-2 text-center backdrop-blur-sm border border-white/10">
-        <Weight className="h-3 w-3 mx-auto mb-1 opacity-90" />
-        <p className="text-[10px] opacity-90 uppercase tracking-wide">Weight</p>
-        <p className="text-sm font-bold">{formatWeight(totalWeight, true)}</p>
-      </div>
-    </div>
-  </div>
 
-  {/* Status Badge - Centered and prominent */}
-    <div className="px-4 pt-2 -mt-0 -mb-1">
-    <div className="flex justify-center">
-      {getStatusBadge(journeyStatus)}
-    </div>
-  </div>
-
-  {/* Content */}
-  <div className="p-4 space-y-4">
-    
-    {/* Route Card */}
-    <div className="bg-gradient-to-r from-gray-50 to-white p-3 rounded-2xl border border-gray-100 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-[9px] text-gray-500 mb-0.5">Origin</p>
-          <p className="text-xs font-medium text-gray-800 truncate">{origin}</p>
-        </div>
-        <div className="px-2">
-          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-            <ChevronRight className="h-4 w-4 text-red-500" />
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-medium text-gray-500">Journey</span>
+            <span className="text-[10px] font-semibold text-gray-700 truncate ml-2">{currentLabel} · {progressPercent}%</span>
           </div>
-        </div>
-        <div className="flex-1 text-right">
-          <p className="text-[9px] text-gray-500 mb-0.5">Destination</p>
-          <p className="text-xs font-medium text-gray-800 truncate">{destination}</p>
-        </div>
-      </div>
-    </div>
-
-    {/* Container Card */}
-    <div className="bg-purple-50/80 p-3 rounded-2xl border border-purple-100 shadow-sm">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center space-x-1.5">
-          <div className="p-1 bg-purple-200 rounded-lg">
-            <Box className="h-3 w-3 text-purple-700" />
-          </div>
-          <span className="text-xs font-semibold text-purple-800 ">{containerType}</span>
-        </div>
-        <span className="font-mono text-[11px] text-purple-700 px-2 py-0.5 rounded ml-1 leading-3">
-          {consolidation.containerNumber || 'No container'}
-        </span>
-      </div>
-      
-      {(consolidation.sealNumber || consolidation.seal || consolidation.sealNo) && (
-        <div className="flex items-center justify-between pt-1.5 border-t border-purple-200">
-          <div className="flex items-center space-x-1.5">
-            <Shield className="h-3 w-3 text-purple-600" />
-            <span className="text-[10px] text-purple-700 font-medium">Seal Number:</span>
-          </div>
-          <span className="font-mono text-xs text-purple-700">
-            {consolidation.sealNumber || consolidation.seal || consolidation.sealNo}
-          </span>
-        </div>
-      )}
-    </div>
-
-    {/* Volume/Weight Progress */}
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-[10px]">
-        <div className="flex items-center space-x-2">
-          <span className="text-gray-500">Volume:</span>
-          <span className="font-semibold text-gray-800">{formatVolume(totalVolume, true)}</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-gray-500">Weight:</span>
-          <span className="font-semibold text-gray-800">{formatWeight(totalWeight, true)}</span>
-        </div>
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-1.5">
-        <div 
-          className="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 rounded-full transition-all duration-300"
-          style={{ width: `${Math.min((totalVolume / 68) * 100, 100)}%` }}
-        />
-      </div>
-      <p className="text-[9px] text-gray-400 text-right">
-        Container capacity: ~68 CBM
-      </p>
-    </div>
-
-    {/* ========== JOURNEY PROGRESS SECTION - IMPROVED ========== */}
-    {/* ========== JOURNEY PROGRESS SECTION - COLLAPSIBLE ========== */}
-  <div className="bg-gradient-to-br from-red-50 to-amber-50 rounded-2xl border border-red-100 overflow-hidden shadow-sm">
-  
-  {/* Header - Always visible */}
-  <button
-    onClick={() => setIsJourneyExpanded(!isJourneyExpanded)}
-    className="w-full p-3.5 flex items-center justify-between hover:bg-red-100/50 transition-colors"
-  >
-    <div className="flex items-center space-x-2">
-      <div className="p-1 bg-red-200 rounded-lg">
-        <TrendingUp className="h-3.5 w-3.5 text-red-700" />
-      </div>
-      <span className="text-xs font-bold text-red-800">Journey Progress</span>
-      
-      {/* Mini Progress Indicator when collapsed */}
-      {!isJourneyExpanded && (
-        <div className="flex items-center space-x-1 ml-2">
-          <div className="w-16 bg-gray-200 rounded-full h-1">
+          <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
             <div
-              className="bg-gradient-to-r from-red-500 to-amber-500 h-1 rounded-full"
+              className="h-full rounded-full bg-gradient-to-r from-[#E67E22] to-amber-400 transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <span className="text-[9px] font-medium text-red-600">
-            {progressPercent}%
-          </span>
-        </div>
-      )}
-    </div>
-    
-    <div className="flex items-center space-x-2">
-      {/* Step indicator when collapsed */}
-      {!isJourneyExpanded && (
-        <div className="bg-red-200/50 px-1.5 py-0.5 rounded-full">
-          <span className="text-[8px] font-semibold text-red-700">
-            {journeyAnchorIndex + 1}/{statusSteps.length}
-          </span>
-        </div>
-      )}
-      {isJourneyExpanded ? (
-        <ChevronUp className="h-4 w-4 text-red-600" />
-      ) : (
-        <ChevronDown className="h-4 w-4 text-red-600" />
-      )}
-    </div>
-  </button>
-  
-  {/* Expanded Content */}
-  {isJourneyExpanded && (
-    <div className="p-3 pt-0 space-y-3 animate-in slide-in-from-top-2 duration-200">
-      
-      {/* Main Progress Bar */}
-      <div className="mb-3">
-        <div className="flex justify-between text-[9px] text-gray-600 mb-1">
-          <span>Started</span>
-          <span>In Progress</span>
-          <span>Delivered</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className="bg-gradient-to-r from-red-500 to-amber-500 h-2 rounded-full transition-all duration-500"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-[9px] text-gray-400 mt-1">
-          <span>0%</span>
-          <span>50%</span>
-          <span>100%</span>
-        </div>
-      </div>
-      
-      {/* Current Status Highlight */}
-      <div className="bg-white/80 rounded-lg p-2.5 mb-3 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-1.5 bg-red-100 rounded-full">
-              {(() => {
-                const currentStep = statusSteps[currentStepIndex];
-                const Icon = currentStep?.icon || Package;
-                return <Icon className="h-3.5 w-3.5 text-red-600" />;
-              })()}
-            </div>
-            <div>
-              <p className="text-[9px] text-gray-500 uppercase tracking-wide">Current Status</p>
-              <p className="text-sm font-bold text-gray-900">
-                {statusSteps[currentStepIndex]?.label || consolidation.status?.replace(/_/g, ' ')}
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[9px] text-gray-400">Completion</p>
-            <p className="text-lg font-bold text-red-600">
-              {progressPercent}%
+          {isSpecial && (
+            <p className="mt-1 text-[10px] text-red-600 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3 shrink-0" />
+              {journeyStatus === 'on_hold' ? 'Temporarily paused' : journeyStatus === 'cancelled' ? 'Cancelled' : 'Returned'}
             </p>
-          </div>
-        </div>
-      </div>
-      
-      {/* Timeline Steps - Better visualization */}
-      <div className="space-y-2">
-        {/* Done Steps */}
-        {previousSteps.length > 0 && (
-          <div>
-            <p className="text-[9px] font-semibold text-green-700 mb-1.5 flex items-center">
-              <CheckCircle className="h-2.5 w-2.5 mr-1" />
-              Done ({previousSteps.length})
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {previousSteps.map((step, idx) => {
-                const StepIcon = step.icon;
-                return (
-                  <div key={idx} className="flex items-center bg-green-100 rounded-full px-2 py-0.5">
-                    <StepIcon className="h-2.5 w-2.5 text-green-700 mr-1" />
-                    <span className="text-[9px] font-medium text-green-800">{step.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        
-        {/* Current Step */}
-        <div>
-          <p className="text-[9px] font-semibold text-red-700 mb-1.5 flex items-center">
-            <Activity className="h-2.5 w-2.5 mr-1" />
-            Current
-          </p>
-          <div className="bg-red-100 rounded-full px-2.5 py-1 inline-flex items-center">
-            {(() => {
-              const StepIcon = statusSteps[currentStepIndex]?.icon || Package;
-              return <StepIcon className="h-2.5 w-2.5 text-red-700 mr-1.5" />;
-            })()}
-            <span className="text-[9px] font-semibold text-red-800">
-              {statusSteps[currentStepIndex]?.label || consolidation.status?.replace(/_/g, ' ')}
-            </span>
-          </div>
-        </div>
-        
-        {/* Upcoming Steps */}
-        {nextSteps.length > 0 && (
-          <div>
-            <p className="text-[9px] font-semibold text-gray-500 mb-1.5 flex items-center">
-              <Clock className="h-2.5 w-2.5 mr-1" />
-              Upcoming ({nextSteps.length})
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {nextSteps.map((step, idx) => {
-                const StepIcon = step.icon;
-                return (
-                  <div key={idx} className="flex items-center bg-gray-100 rounded-full px-2 py-0.5">
-                    <StepIcon className="h-2.5 w-2.5 text-gray-500 mr-1" />
-                    <span className="text-[9px] text-gray-600">{step.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Special Status Warnings */}
-      {journeyStatus === 'on_hold' && (
-        <div className="mt-3 bg-red-200/50 p-2 rounded-lg flex items-start border border-red-300">
-          <AlertCircle className="h-3.5 w-3.5 text-red-700 mr-2 mt-0.5 flex-shrink-0" />
-          <p className="text-[10px] text-red-800">
-            <span className="font-semibold">On Hold:</span> This consolidation is temporarily paused. Resume when ready.
-          </p>
-        </div>
-      )}
-      
-      {journeyStatus === 'cancelled' && (
-        <div className="mt-3 bg-red-100 p-2 rounded-lg flex items-start border border-red-200">
-          <Ban className="h-3.5 w-3.5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
-          <p className="text-[10px] text-red-800">
-            <span className="font-semibold">Cancelled:</span> This consolidation has been cancelled and cannot be resumed.
-          </p>
-        </div>
-      )}
-
-      {journeyStatus !== 'cancelled' && journeyStatus !== 'completed' && (
-        <div className="pt-2 border-t border-red-100">
-          <div className="grid grid-cols-2 gap-2">
-            {journeyStatus === 'on_hold' ? (
-              <button
-                onClick={() => onResumeConsolidation?.(consolidation)}
-                        className="w-full px-2 py-2 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-medium hover:bg-green-100 flex items-center justify-center shadow-sm"
-              >
-                <Play className="h-3 w-3 mr-1" />
-                Resume Container
-              </button>
-            ) : (
-              <button
-                onClick={() => onHoldConsolidation?.(consolidation)}
-                className="w-full px-2 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-xs font-medium hover:bg-amber-100 flex items-center justify-center shadow-sm"
-              >
-                <Pause className="h-3 w-3 mr-1" />
-                Hold Container
-              </button>
-            )}
-            <button
-              onClick={() => onCancelConsolidation?.(consolidation)}
-              className="w-full px-2 py-2 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs font-medium hover:bg-red-100 flex items-center justify-center shadow-sm"
-            >
-              <Ban className="h-3 w-3 mr-1" />
-              Cancel Container
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )}
-</div>
-
-    {/* Action Buttons */}
-    <div className="flex items-center justify-between pt-2">
-      <div className="flex space-x-1.5">
-        <button
-          onClick={() => onView(consolidation)}
-          className="p-1.5 hover:bg-blue-100 rounded-lg text-blue-600 transition-colors"
-          title="View Details"
-        >
-          <Eye className="h-3.5 w-3.5" />
-        </button>
-        {(consolidation.status !== 'cancelled' && consolidation.status !== 'completed') && (
-          <>
-            <button
-              onClick={() => onEdit(consolidation._id)}
-              className="p-1.5 hover:bg-green-100 rounded-lg text-green-600 transition-colors"
-              title="Edit"
-            >
-              <Edit className="h-3.5 w-3.5" />
-            </button>
-            {consolidation.status === 'draft' && (
-              <button
-                onClick={() => onDelete(consolidation._id)}
-                className="p-1.5 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
-                title="Delete"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </>
-        )}
-      </div>
-      <div>
-        {getActionButton()}
-      </div>
-    </div>
-
-    {/* Shipments Toggle */}
-    {(items.length > 0 || shipments.length > 0) && (
-      <div className="mt-2">
-        <button
-          onClick={() => setShowShipments(!showShipments)}
-            className="w-full flex items-center justify-between p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-100 transition-colors"
-        >
-          <div className="flex items-center space-x-2">
-            <Package className="h-3 w-3 text-gray-500" />
-            <span className="text-[10px] font-medium text-gray-700">
-              {shipments.length} Shipment(s)
-            </span>
-            {shipments.filter(s => s.status === 'on_hold').length > 0 && (
-              <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[9px] rounded-full">
-                {shipments.filter(s => s.status === 'on_hold').length} on hold
-              </span>
-            )}
-            {shipments.filter(s => s.status === 'cancelled').length > 0 && (
-              <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[9px] rounded-full">
-                {shipments.filter(s => s.status === 'cancelled').length} cancelled
-              </span>
-            )}
-          </div>
-          {showShipments ? (
-            <ChevronUp className="h-3.5 w-3.5 text-gray-500" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
           )}
-        </button>
-        
-        {showShipments && (
-          <div className="mt-2 space-y-1.5 max-h-60 overflow-y-auto">
-            {shipments.map((shipment, idx) => {
-              if (!shipment) return null;
-              return (
-                <ShipmentCard
-                  key={idx}
-                  shipment={shipment}
-                  consolidationId={consolidation._id}
-                  consolidationStatus={consolidation.status}
-                  onShipmentUpdated={() => {
-                    if (typeof onShipmentStatusChange === 'function') {
-                      onShipmentStatusChange();
-                    }
-                  }}
-                />
-              );
-            })}
-          </div>
-        )}
+        </div>
       </div>
-    )}
-  </div>
-</div>
+
+      <div className="px-3 py-2 border-t border-gray-100 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-0.5">
+          <CardIconButton icon={Eye} label="View details" onClick={() => onView(consolidation)} tone="text-blue-600 hover:bg-blue-50" />
+          {canManage && (
+            <>
+              <CardIconButton icon={Edit} label="Edit" onClick={() => onEdit(consolidation._id)} tone="text-green-600 hover:bg-green-50" />
+              {consolidation.status === 'draft' && (
+                <CardIconButton icon={Trash2} label="Delete" onClick={() => onDelete(consolidation._id)} tone="text-red-600 hover:bg-red-50" />
+              )}
+              {journeyStatus === 'on_hold' ? (
+                <CardIconButton icon={Play} label="Resume container" onClick={() => onResumeConsolidation?.(consolidation)} tone="text-emerald-600 hover:bg-emerald-50" />
+              ) : (
+                <CardIconButton icon={Pause} label="Hold container" onClick={() => onHoldConsolidation?.(consolidation)} tone="text-amber-600 hover:bg-amber-50" />
+              )}
+              <CardIconButton icon={Ban} label="Cancel container" onClick={() => onCancelConsolidation?.(consolidation)} tone="text-red-600 hover:bg-red-50" />
+            </>
+          )}
+        </div>
+
+        {isFinished ? (
+          <span className="inline-flex items-center px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
+            <Award className="h-3 w-3 mr-1" /> Completed
+          </span>
+        ) : nextAction ? (
+          <button
+            type="button"
+            onClick={() => nextAction.run?.(consolidation)}
+            className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-white text-[11px] font-medium shadow-sm transition-colors whitespace-nowrap ${nextAction.tone}`}
+          >
+            <nextAction.icon className="h-3.5 w-3.5 mr-1.5" />
+            {nextAction.label}
+          </button>
+        ) : null}
+      </div>
+
+      {(items.length > 0 || shipments.length > 0) && (
+        <button
+          type="button"
+          onClick={() => setShowShipments((v) => !v)}
+          className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 border-t border-gray-100 transition-colors"
+        >
+          <span className="flex items-center gap-1.5 text-[10px] font-medium text-gray-600">
+            <Package className="h-3 w-3" />
+            {shipments.length} shipment(s)
+            {shipments.some((s) => s?.status === 'on_hold') && (
+              <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[9px] rounded-full">
+                {shipments.filter((s) => s?.status === 'on_hold').length} hold
+              </span>
+            )}
+          </span>
+          {showShipments ? <ChevronUp className="h-3.5 w-3.5 text-gray-500" /> : <ChevronDown className="h-3.5 w-3.5 text-gray-500" />}
+        </button>
+      )}
+      {showShipments && (
+        <div className="px-3 pb-3 space-y-1.5 max-h-60 overflow-y-auto">
+          {shipments.map((shipment, idx) => shipment && (
+            <ShipmentCard
+              key={shipment?._id?.toString() || idx}
+              shipment={shipment}
+              consolidationId={consolidation._id}
+              consolidationStatus={consolidation.status}
+              onShipmentUpdated={() => onShipmentStatusChange?.()}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -1857,10 +1411,14 @@ const ConsolidationDetailsModal = ({
   onCustomsCleared,
   onOutForDelivery,
   onDelivered,
-  onComplete
+  onComplete,
+  onUpdated
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const journeyStatus = normalizeConsolidationTimelineStatus(consolidation?.status);
+  const rawModalStatus = consolidation?.status || '';
+  const journeyStatus = normalizeConsolidationTimelineStatus(rawModalStatus);
+  const modalIsCompleted = rawModalStatus === 'completed';
+  const modalDisplayStatus = modalIsCompleted ? 'completed' : journeyStatus;
 
   // ✅ Helper function to deduplicate shipments
   const deduplicateShipments = (shipsArray) => {
@@ -1890,22 +1448,25 @@ const ConsolidationDetailsModal = ({
       { status: 'loaded_into_container', label: 'Loaded into Container', icon: Send, color: 'red' },
       { status: 'container_sealed', label: 'Container Sealed', icon: Shield, color: 'indigo' },
       { status: 'departed_port_of_origin', label: 'Departed Port of Origin', icon: Send, color: 'amber' },
-      { status: 'in_transit_sea_freight', label: 'In Transit (Sea Freight)', icon: Truck, color: 'yellow' },
+      { status: 'in_transit_sea_freight', label: 'In Transit', icon: Truck, color: 'yellow' },
       { status: 'arrived_at_destination_port', label: 'Arrived at Destination Port', icon: Flag, color: 'green' },
-      { status: 'under_customs_cleared', label: 'Under Customs Clearance', icon: Shield, color: 'emerald' },
+      { status: 'under_customs_clearance', label: 'Under Customs Clearance', icon: Shield, color: 'emerald' },
       { status: 'customs_cleared', label: 'Customs Cleared', icon: ShieldCheck, color: 'emerald' },
       { status: 'unloaded_from_vessel', label: 'Unloaded from Vessel', icon: Anchor, color: 'emerald' },
       { status: 'out_for_delivery', label: 'Out for Delivery', icon: Truck, color: 'blue' },
       { status: 'delivered', label: 'Delivered', icon: CheckCircle, color: 'green' }
     ];
     
+    if (modalIsCompleted) {
+      return [...baseSteps, { status: 'completed', label: 'Completed', icon: Award, color: 'emerald' }];
+    }
     if (journeyStatus === 'cancelled') {
       return [...baseSteps, { status: 'cancelled', label: 'Cancelled', icon: Ban, color: 'red' }];
     }
     if (journeyStatus === 'on_hold') {
       return [...baseSteps, { status: 'on_hold', label: 'On Hold', icon: Pause, color: 'red' }];
     }
-    
+
     return baseSteps;
   };
 
@@ -1913,14 +1474,14 @@ const ConsolidationDetailsModal = ({
   const statusSteps = getStatusSteps();
   const MODAL_SPECIAL_STATES = ['on_hold', 'cancelled', 'returned'];
   const isModalSpecialState = MODAL_SPECIAL_STATES.includes(journeyStatus);
-  const currentStepIndex = Math.max(0, statusSteps.findIndex(step => step.status === journeyStatus));
+  const currentStepIndex = Math.max(0, statusSteps.findIndex(step => step.status === modalDisplayStatus));
 
   // Anchor progress to where the journey actually was (lastActiveStatus) when
   // on hold / cancelled / returned — otherwise "Done", the step counter and the
   // completed ticks jumped to the end of the list.
   const modalAnchorStatus = isModalSpecialState
     ? normalizeConsolidationTimelineStatus(consolidation?.lastActiveStatus || 'pending')
-    : journeyStatus;
+    : modalDisplayStatus;
   const journeyAnchorIndex = Math.max(0, statusSteps.findIndex(step => step.status === modalAnchorStatus));
 
   // ✅ কেবল মোডালের জন্য লোকাল ভেরিয়েবল
@@ -2304,10 +1865,10 @@ const ConsolidationDetailsModal = ({
               {/* Items and Shipments... */}
               {items.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold mb-2">Inspect history ({items.length})</h4>
+                  <h4 className="text-xs font-semibold mb-2">Packing Items ({items.length})</h4>
                   <div className="space-y-2">
                     {items.map((item, idx) => (
-                      <ShipmentItemCard key={idx} item={item} />
+                      <ShipmentItemCard key={idx} item={item} shipments={shipments} />
                     ))}
                   </div>
                 </div>
@@ -2323,7 +1884,7 @@ const ConsolidationDetailsModal = ({
                         shipment={shipment} 
                         consolidationId={consolidation._id}
                         consolidationStatus={consolidation.status}
-                        onShipmentUpdated={() => {}}
+                        onShipmentUpdated={() => onUpdated?.()}
                       />
                     ))}
                   </div>
@@ -2487,15 +2048,46 @@ const ConsolidationDetailsModal = ({
           {activeTab === 'timeline' && (
             <div className="space-y-2">
               {consolidation.timeline?.length > 0 ? (
-                consolidation.timeline.map((event, index) => (
-                  <div key={index} className="flex items-start space-x-2">
-                    <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-[#E67E22]"></div>
-                    <div className="flex-1 bg-gray-50 p-2 rounded">
-                      <p className="text-xs font-medium">{event.status}</p>
-                      <p className="text-[10px] text-gray-500">{formatDate(event.timestamp)}</p>
-                    </div>
-                  </div>
-                ))
+                [...consolidation.timeline]
+                  .sort((a, b) => new Date(a.timestamp || a.date || 0) - new Date(b.timestamp || b.date || 0))
+                  .map((event, index) => {
+                    const normalized = normalizeConsolidationTimelineStatus(event.status);
+                    const stepConfig = CONSOLIDATION_TIMELINE_STATUS_STEPS.find((s) => s.value === normalized);
+                    const StepIcon = stepConfig?.icon || Activity;
+                    const eventMetadata = event.metadata && typeof event.metadata === 'object' ? event.metadata : {};
+                    return (
+                      <div key={index} className="flex items-start space-x-2">
+                        <div className="mt-0.5 p-1 bg-red-100 rounded-full flex-shrink-0">
+                          <StepIcon className="h-3 w-3 text-red-600" />
+                        </div>
+                        <div className="flex-1 bg-gray-50 p-2 rounded">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-medium">
+                              {stepConfig?.label || (event.status || '').replace(/_/g, ' ')}
+                            </p>
+                            <p className="text-[10px] text-gray-500 whitespace-nowrap">
+                              {formatDate(event.timestamp || event.date)}
+                            </p>
+                          </div>
+                          {event.description && (
+                            <p className="text-[11px] text-gray-600 mt-1">{event.description}</p>
+                          )}
+                          {Object.keys(eventMetadata).length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-1">
+                              {Object.entries(eventMetadata)
+                                .filter(([, value]) => value !== null && value !== undefined && value !== '')
+                                .map(([key, value]) => (
+                                  <p key={key} className="text-[10px] text-gray-600">
+                                    <span className="font-semibold capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
+                                    {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
+                                  </p>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
               ) : (
                 <div className="text-center py-8 text-gray-500 text-sm">
                   No timeline events
@@ -3424,7 +3016,8 @@ const StartConsolidationModal = ({ isOpen, onClose, consolidation, onSuccess }) 
     try {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'in_progress',
-        notes: `Consolidation started. ${notes}`
+        notes: `Consolidation started. ${notes}`,
+        metadata: { notes }
       });
 
       if (result.success) {
@@ -3539,7 +3132,8 @@ const CompleteConsolidationModal = ({ isOpen, onClose, consolidation, onSuccess 
     try {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'consolidated',
-        notes: `Consolidation completed. ${notes}`
+        notes: `Consolidation completed. ${notes}`,
+        metadata: { notes }
       });
 
       if (result.success) {
@@ -3659,7 +3253,8 @@ const DeliveredCompletionModal = ({ isOpen, onClose, consolidation, onSuccess })
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'completed',
         notes: `Completed on ${completionDate}. ${notes}`.trim(),
-        timestamp: completionDate
+        timestamp: completionDate,
+        metadata: { completionDate, notes }
       });
 
       if (result.success) {
@@ -3762,7 +3357,12 @@ const LoadedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         status: 'loaded',
         notes: `Loaded at ${formData.location} on ${formData.loadedDate}. ${formData.notes}`,
         location: formData.location,
-        timestamp: new Date(formData.loadedDate)
+        timestamp: new Date(formData.loadedDate),
+        metadata: {
+          loadedDate: formData.loadedDate,
+          location: formData.location,
+          notes: formData.notes
+        }
       });
 
       if (result.success) {
@@ -3887,7 +3487,16 @@ const DispatchModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         notes: `Dispatched on ${formData.dispatchDate} with ${formData.carrierName}. Vehicle: ${formData.vehicleNumber || 'N/A'}, Driver: ${formData.driverName || 'N/A'}. ${formData.notes}`,
         location: formData.portName || consolidation.destinationPort || consolidation.originWarehouse,
         actualDeparture: new Date(formData.dispatchDate),
-        timestamp: new Date(formData.dispatchDate)
+        timestamp: new Date(formData.dispatchDate),
+        metadata: {
+          dispatchDate: formData.dispatchDate,
+          carrierName: formData.carrierName,
+          vehicleNumber: formData.vehicleNumber,
+          driverName: formData.driverName,
+          driverPhone: formData.driverPhone,
+          portName: formData.portName,
+          notes: formData.notes
+        }
       });
 
       if (dispatchResult.success) {
@@ -3902,7 +3511,8 @@ const DispatchModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
             await updateConsolidationStatus(consolidation._id, {
               status: 'in_transit',
               forceUpdate: true,
-              notes: `In transit with ${formData.carrierName}`
+              notes: `In transit with ${formData.carrierName}`,
+              metadata: { carrierName: formData.carrierName }
             });
             toast.info('🚚 Now in transit');
             onSuccess();
@@ -4072,7 +3682,12 @@ const PickedUpModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         status: 'picked_up_from_warehouse',
         notes: `Picked up from warehouse on ${formData.pickupDate}${formData.location ? ` at ${formData.location}` : ''}. ${formData.notes}`,
         location: formData.location || consolidation.originWarehouse,
-        timestamp: new Date(formData.pickupDate)
+        timestamp: new Date(formData.pickupDate),
+        metadata: {
+          pickupDate: formData.pickupDate,
+          location: formData.location,
+          notes: formData.notes
+        }
       });
       
       if (result?.success) {
@@ -4183,7 +3798,8 @@ const LoadedIntoContainerModal = ({ isOpen, onClose, consolidation, onSuccess })
     try {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'loaded_into_container',
-        notes: notes || `Loaded into Container`
+        notes: notes || `Loaded into Container`,
+        metadata: { notes }
       });
       
       if (result?.success) {
@@ -4272,7 +3888,8 @@ const ReadyForDispatchModal = ({ isOpen, onClose, consolidation, onSuccess }) =>
       // ✅ সঠিকভাবে API কল করুন
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'ready_for_dispatch',
-        notes: notes || `Marked Loaded into Container`
+        notes: notes || `Marked Loaded into Container`,
+        metadata: { notes }
       });
       
       if (result?.success) {
@@ -4374,7 +3991,12 @@ const ContainerSealedModal = ({ isOpen, onClose, consolidation, onSuccess }) => 
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'container_sealed',
         notes: `Container sealed on ${formData.sealDate}${formData.sealNumber ? ` with seal #${formData.sealNumber}` : ''}. ${formData.notes}`,
-        timestamp: new Date(formData.sealDate)
+        timestamp: new Date(formData.sealDate),
+        metadata: {
+          sealNumber: formData.sealNumber,
+          sealDate: formData.sealDate,
+          notes: formData.notes
+        }
       });
       
       if (result?.success) {
@@ -4492,7 +4114,13 @@ const DepartedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         status: 'departed_port_of_origin',
         notes: `Departed from ${formData.portName || 'Port of Origin'} on ${formData.departureDate}${formData.vesselName ? ` on vessel ${formData.vesselName}` : ''}. ${formData.notes}`,
         location: formData.portName || consolidation.originPort,
-        timestamp: new Date(formData.departureDate)
+        timestamp: new Date(formData.departureDate),
+        metadata: {
+          portName: formData.portName,
+          departureDate: formData.departureDate,
+          vesselName: formData.vesselName,
+          notes: formData.notes
+        }
       });
       
       if (result?.success) {
@@ -4617,9 +4245,13 @@ const InTransitModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
     setLoading(true);
     try {
       const result = await updateConsolidationStatus(consolidation._id, {
-        status: 'in_transit_sea_freight',
-        notes: `In transit (Sea Freight) as of ${formData.transitDate}. ${formData.notes}`,
-        timestamp: new Date(formData.transitDate)
+        status: 'in_transit',
+        notes: `In transit as of ${formData.transitDate}. ${formData.notes}`,
+        timestamp: new Date(formData.transitDate),
+        metadata: {
+          transitDate: formData.transitDate,
+          notes: formData.notes
+        }
       });
       
       if (result?.success) {
@@ -4724,7 +4356,12 @@ const UnloadedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         status: 'unloaded_from_vessel',
         notes: `Unloaded from vessel on ${formData.unloadDate}${formData.portName ? ` at ${formData.portName}` : ''}. ${formData.notes}`,
         location: formData.portName || consolidation.destinationPort,
-        timestamp: new Date(formData.unloadDate)
+        timestamp: new Date(formData.unloadDate),
+        metadata: {
+          unloadDate: formData.unloadDate,
+          portName: formData.portName,
+          notes: formData.notes
+        }
       });
       
       if (result?.success) {
@@ -4849,7 +4486,13 @@ const ArrivedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         notes: `Arrived at ${formData.portName} on ${formData.arrivalDate}. Vessel: ${formData.vesselName}. ${formData.notes}`,
         location: formData.portName,
         actualArrival: new Date(formData.arrivalDate),
-        timestamp: new Date(formData.arrivalDate)
+        timestamp: new Date(formData.arrivalDate),
+        metadata: {
+          portName: formData.portName,
+          arrivalDate: formData.arrivalDate,
+          vesselName: formData.vesselName,
+          notes: formData.notes
+        }
       });
 
       if (result.success) {
@@ -4974,7 +4617,12 @@ const UnderCustomsClearedModal = ({ isOpen, onClose, consolidation, onSuccess })
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'under_customs_clearance',
         notes: `Under Customs Clearance on ${formData.clearanceDate}. Reference: ${formData.customsReference}. ${formData.notes}`,
-        timestamp: new Date(formData.clearanceDate)
+        timestamp: new Date(formData.clearanceDate),
+        metadata: {
+          clearanceDate: formData.clearanceDate,
+          customsReference: formData.customsReference,
+          notes: formData.notes
+        }
       });
 
       if (result.success) {
@@ -5091,7 +4739,12 @@ const CustomsClearedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'customs_cleared',
         notes: `Customs cleared on ${formData.clearanceDate}. Reference: ${formData.customsReference}. ${formData.notes}`,
-        timestamp: new Date(formData.clearanceDate)
+        timestamp: new Date(formData.clearanceDate),
+        metadata: {
+          clearanceDate: formData.clearanceDate,
+          customsReference: formData.customsReference,
+          notes: formData.notes
+        }
       });
 
       if (result.success) {
@@ -5212,7 +4865,15 @@ const OutForDeliveryModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'out_for_delivery',
         notes: `Out for delivery on ${formData.deliveryDate}. Carrier: ${formData.carrierName}, Vehicle: ${formData.vehicleNumber}, Driver: ${formData.driverName}. ${formData.notes}`,
-        timestamp: new Date(formData.deliveryDate)
+        timestamp: new Date(formData.deliveryDate),
+        metadata: {
+          deliveryDate: formData.deliveryDate,
+          carrierName: formData.carrierName,
+          vehicleNumber: formData.vehicleNumber,
+          driverName: formData.driverName,
+          driverPhone: formData.driverPhone,
+          notes: formData.notes
+        }
       });
 
       if (result.success) {
@@ -5371,7 +5032,13 @@ const DeliveredModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'delivered',
         notes: `Delivered on ${formData.deliveredDate}. Received by: ${formData.receivedBy}. ${formData.notes}`,
-        timestamp: new Date(formData.deliveredDate)
+        timestamp: new Date(formData.deliveredDate),
+        metadata: {
+          deliveredDate: formData.deliveredDate,
+          receivedBy: formData.receivedBy,
+          signature: formData.signature,
+          notes: formData.notes
+        }
       });
 
       if (result.success) {
@@ -6304,6 +5971,7 @@ const handleShipmentStatusChange = async () => {
         isOpen={showDetailsModal}
         onClose={() => { setShowDetailsModal(false); setSelectedConsolidation(null); }}
         consolidation={selectedConsolidation}
+        onUpdated={() => { loadConsolidations(); loadStats(); }}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onStartConsolidation={handleStartConsolidation}

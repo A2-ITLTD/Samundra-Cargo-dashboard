@@ -130,10 +130,10 @@ export const updateShipmentStatus = async (shipmentId, statusData) => {
 
 import axios from "axios";
 import { getAuthToken } from "@/utils/SessionHelper";
+import { BASE_URL } from "@/utils/confiq";
 
 // ✅ API_URL ডিফাইন করুন
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_URL = BASE_URL;
 
 export const updateNewTrackingNumber = async (shipmentId, trackingNumber) => {
   try {

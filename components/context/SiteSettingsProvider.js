@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { getSiteSettings } from '@/services/siteSettings';
+import { uploadsImg } from '@/utils/confiq';
 
 // localStorage key holding the last successfully fetched settings, so a reload
 // can paint the uploaded logo/favicon immediately instead of flashing defaults.
@@ -13,7 +14,7 @@ const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : use
 
 // Fallback defaults so the dashboard never renders empty identity/contact info.
 export const DEFAULT_SETTINGS = {
-  logo: 'http://localhost:8000/uploads/logo.png',
+  logo: uploadsImg('logo.png'),
   favicon: '',
   companyName: 'Samudera Traffic Co., Ltd.',
   phone: '+66977830395',

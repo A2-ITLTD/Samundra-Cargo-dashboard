@@ -9,14 +9,14 @@ function WarehouseContent() {
   return <Warehouse />;
 }
 
-function page() {
+function Page() {
     const router = useRouter();
   useEffect(() => {  // ← এই পুরো useEffect যোগ করুন
     const token = getAuthToken();
     if (!token) {
       router.push('/');
     }
-  }, []);
+  }, [router]);
   return (
 
     <div>
@@ -29,4 +29,4 @@ function page() {
   )
 }
 
-export default page
+export default Page
