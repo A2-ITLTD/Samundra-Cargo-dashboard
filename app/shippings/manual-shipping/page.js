@@ -2795,20 +2795,17 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl', full: 'max-w-6xl' };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity" onClick={onClose}>
-          <div className="absolute inset-0 bg-gray-300 opacity-75"></div>
-        </div>
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-        <div className={`inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle ${sizes[size]} w-full`}>
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+    <div className="fixed inset-0 z-[100] overflow-y-auto">
+      <div className="fixed inset-0 bg-gray-300 opacity-75" onClick={onClose}></div>
+      <div className="relative flex min-h-full items-center justify-center p-4 sm:p-6">
+        <div className={`relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl bg-white text-left shadow-xl ${sizes[size]}`}>
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4">
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
               <X className="h-5 w-5 text-gray-500" />
             </button>
           </div>
-          <div className="px-6 py-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
             {children}
           </div>
         </div>

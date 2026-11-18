@@ -329,7 +329,7 @@ export const getTrackingStatusDisplay = (status) => {
     'loaded_in_container': 'Loaded into Container',
     'container_sealed': 'Container Sealed',
     'departed_port_of_origin': 'Departed Port of Origin',
-    'in_transit_sea_freight': 'In Transit (Sea Freight)',
+    'in_transit_sea_freight': 'In Transit',
     'arrived_at_destination_port': 'Arrived at Destination Port',
     'under_customs_cleared': 'Under Customs Clearance',
     'customs_cleared': 'Customs Cleared',

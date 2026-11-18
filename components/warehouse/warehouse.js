@@ -517,9 +517,12 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
       }
 
       if (field === 'condition') {
+        const isGood = value === 'Good';
         updated[currentPackageIndex] = {
           ...updated[currentPackageIndex],
-          condition: value
+          condition: value,
+          passed: isGood ? maxQuantity : 0,
+          failed: isGood ? 0 : maxQuantity
         };
       }
       else if (field === 'passed' || field === 'failed') {

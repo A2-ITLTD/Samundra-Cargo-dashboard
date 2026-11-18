@@ -22,7 +22,7 @@ import {
   Receipt, Clock, Flag, Check,
   Shield
 } from 'lucide-react';
-import { getAuthToken } from '@/utils/SessionHelper';
+import { getAuthToken, getUserDetails } from '@/utils/SessionHelper';
 
 // ==================== CONSTANTS ====================
 
@@ -443,7 +443,7 @@ export default function CreateBooking() {
   // ==================== LOAD ADMIN USER ====================
   useEffect(() => {
     const loadInitialData = async () => {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = getUserDetails() || {};
       setAdminUser(user);
       
       const initialTimeline = [{

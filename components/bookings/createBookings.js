@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { toast } from 'react-toastify';
 import { createBooking } from '@/services/booking';
 import { getAllUsers } from '@/services/Authentication';
+import { getUserDetails } from '@/utils/SessionHelper';
 
 // Location functions
 import { getStates, fetchCitiesByState, getPostalCodes } from '@/services/location';
@@ -527,7 +528,7 @@ export default function CreateBooking() {
   // ==================== LOAD CUSTOMERS ====================
   useEffect(() => {
     const loadInitialData = async () => {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = getUserDetails() || {};
       setAdminUser(user);
       await loadCustomers();
     };
@@ -859,7 +860,7 @@ export default function CreateBooking() {
     handleInputChange(e);
     
     if (value && formData.receiver.address.country) {
-      loadPostalCodes(formData.receiver.address.country, value);
+      setPostalCodes(getPostalCodes());
       
       setFormData(prev => ({
         ...prev,
@@ -1131,6 +1132,11 @@ export default function CreateBooking() {
       setCurrentStep(3);
       return;
     }
+    if (!formData.sender.address.addressLine1) {
+      toast.error('📍 Sender address is required');
+      setCurrentStep(3);
+      return;
+    }
     if (!formData.sender.address.city) {
       toast.error('🏙️ Sender city is required');
       setCurrentStep(3);
@@ -1221,7 +1227,7 @@ export default function CreateBooking() {
           voyageNumber: formData.shipmentDetails.voyageNumber,
           packageDetails: formData.shipmentDetails.packageDetails.map(pkg => ({
             description: pkg.description,
-            packagingType: pkg.packagingType,
+            packagingType: pkg.packagingType || 'carton',
             quantity: Number(pkg.quantity),
             weight: Number(pkg.weight),
             volume: Number(pkg.volume),
@@ -1231,7 +1237,7 @@ export default function CreateBooking() {
               height: Number(pkg.dimensions.height) || 0,
               unit: 'cm'
             },
-            productCategory: pkg.productCategory || '',
+            productCategory: pkg.productCategory || 'Others',
             hsCode: pkg.hsCode || '',
             value: {
               amount: Number(pkg.value.amount) || 0,
