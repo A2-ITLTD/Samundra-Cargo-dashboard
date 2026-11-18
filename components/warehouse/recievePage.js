@@ -457,7 +457,7 @@ const ReceiptDetailsModal = ({ receipt, onClose, onDownload }) => {
                       <span className={`font-medium ${
                         inspection.condition === 'Good' ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {inspection.condition}
+                        {getConditionDisplayText(inspection.condition)}
                       </span>
                     </div>
                     <div className="text-sm">

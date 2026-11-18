@@ -23,6 +23,7 @@ import {
   useDamageReports,
   useDamageReport
 } from '@/services/damage';
+import { getShipmentStatusDisplayText } from '@/services/shipping';
 import {
   Loader2, AlertTriangle, AlertOctagon, Package, Search,
   Calendar, MapPin, User, X, CheckCircle, Eye, Filter,
@@ -448,7 +449,7 @@ const DetailsModal = ({ report, onClose, onUpdate }) => {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Status</p>
-                    <p className="text-sm">{report.shipmentId?.status || 'N/A'}</p>
+                    <p className="text-sm">{report.shipmentId?.status ? getShipmentStatusDisplayText(report.shipmentId.status) : 'N/A'}</p>
                   </div>
                 </div>
               </div>
@@ -471,7 +472,7 @@ const DetailsModal = ({ report, onClose, onUpdate }) => {
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             detail.condition === 'Good' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                           }`}>
-                            {detail.condition}
+                            {getDamageConditionDisplayText(detail.condition)}
                           </span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
