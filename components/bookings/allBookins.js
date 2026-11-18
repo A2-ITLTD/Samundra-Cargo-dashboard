@@ -2498,88 +2498,161 @@ export default function BookingsPage() {
     label: config.label
   }));
 
-  const fetchBookings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const queryParams = {
-        page: filters.page,
-        limit: 10,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder
-      };
+  // const fetchBookings = useCallback(async () => {
+  //   setLoading(true);
+  //   try {
+  //     const queryParams = {
+  //       page: filters.page,
+  //       limit: 10,
+  //       sortBy: filters.sortBy,
+  //       sortOrder: filters.sortOrder
+  //     };
       
-      if (filters.status) queryParams.status = filters.status;
-      if (filters.search) queryParams.search = filters.search;
-      if (filters.startDate) queryParams.startDate = filters.startDate;
-      if (filters.endDate) queryParams.endDate = filters.endDate;
+  //     if (filters.status) queryParams.status = filters.status;
+  //     if (filters.search) queryParams.search = filters.search;
+  //     if (filters.startDate) queryParams.startDate = filters.startDate;
+  //     if (filters.endDate) queryParams.endDate = filters.endDate;
       
-      const response = await getAllBookings(queryParams);
-      if (response.success) {
-        let bookingsData = response.data || [];
+  //     const response = await getAllBookings(queryParams);
+  //     if (response.success) {
+  //       let bookingsData = response.data || [];
         
-        const updatedBookings = bookingsData.map(booking => {
-          if (booking.quotedPrice && booking.quotedPrice.validUntil && booking.pricingStatus === 'quoted') {
-            const now = new Date();
-            const validUntil = new Date(booking.quotedPrice.validUntil);
-            const isValid = now <= validUntil;
+  //       const updatedBookings = bookingsData.map(booking => {
+  //         if (booking.quotedPrice && booking.quotedPrice.validUntil && booking.pricingStatus === 'quoted') {
+  //           const now = new Date();
+  //           const validUntil = new Date(booking.quotedPrice.validUntil);
+  //           const isValid = now <= validUntil;
             
-            if (!isValid) {
-              console.log(`Booking ${booking.bookingNumber}: Quote expired on ${validUntil}`);
-              return {
-                ...booking,
-                pricingStatus: 'expired'
-              };
-            }
+  //           if (!isValid) {
+  //             console.log(`Booking ${booking.bookingNumber}: Quote expired on ${validUntil}`);
+  //             return {
+  //               ...booking,
+  //               pricingStatus: 'expired'
+  //             };
+  //           }
+  //         }
+  //         return booking;
+  //       });
+        
+  //       setBookings(updatedBookings);
+  //       setFilteredBookings(updatedBookings);
+  //       setPagination(response.pagination || {
+  //         total: 0,
+  //         page: 1,
+  //         limit: 10,
+  //         pages: 1
+  //       });
+        
+  //       const newStats = {
+  //         total: response.pagination?.total || updatedBookings.length || 0,
+  //         booking_requested: 0,
+  //         price_quoted: 0,
+  //         booking_confirmed: 0,
+  //         pending: 0,
+  //         received_at_warehouse: 0,
+  //         consolidation_in_progress: 0,
+  //         loaded_in_container: 0,
+  //         in_transit: 0,
+  //         arrived_at_destination: 0,
+  //         customs_clearance: 0,
+  //         out_for_delivery: 0,
+  //         delivered: 0,
+  //         cancelled: 0,
+  //         rejected: 0
+  //       };
+        
+  //       if (updatedBookings.length > 0) {
+  //         updatedBookings.forEach(booking => {
+  //           let status = booking.status;
+  //           if (newStats.hasOwnProperty(status)) {
+  //             newStats[status]++;
+  //           }
+  //         });
+  //       }
+        
+  //       setStats(newStats);
+  //     } else {
+  //       toast.error(response.message);
+  //     }
+  //   } catch (error) {
+  //     toast.error(error.message || 'Failed to fetch bookings');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, [filters]);
+
+
+  const fetchBookings = useCallback(async () => {
+  setLoading(true);
+  try {
+    const queryParams = {
+      page: filters.page,
+      limit: 10,
+      sortBy: filters.sortBy,
+      sortOrder: filters.sortOrder
+    };
+    
+    if (filters.status) queryParams.status = filters.status;
+    if (filters.search) queryParams.search = filters.search;
+    if (filters.startDate) queryParams.startDate = filters.startDate;
+    if (filters.endDate) queryParams.endDate = filters.endDate;
+    
+    const response = await getAllBookings(queryParams);
+    if (response.success) {
+      let bookingsData = response.data || [];
+      
+      const updatedBookings = bookingsData.map(booking => {
+        if (booking.quotedPrice && booking.quotedPrice.validUntil && booking.pricingStatus === 'quoted') {
+          const now = new Date();
+          const validUntil = new Date(booking.quotedPrice.validUntil);
+          const isValid = now <= validUntil;
+          
+          if (!isValid) {
+            return { ...booking, pricingStatus: 'expired' };
           }
-          return booking;
-        });
-        
-        setBookings(updatedBookings);
-        setFilteredBookings(updatedBookings);
-        setPagination(response.pagination || {
-          total: 0,
-          page: 1,
-          limit: 10,
-          pages: 1
-        });
-        
-        const newStats = {
-          total: response.pagination?.total || updatedBookings.length || 0,
-          booking_requested: 0,
-          price_quoted: 0,
-          booking_confirmed: 0,
-          pending: 0,
-          received_at_warehouse: 0,
-          consolidation_in_progress: 0,
-          loaded_in_container: 0,
-          in_transit: 0,
-          arrived_at_destination: 0,
-          customs_clearance: 0,
-          out_for_delivery: 0,
-          delivered: 0,
-          cancelled: 0,
-          rejected: 0
-        };
-        
-        if (updatedBookings.length > 0) {
-          updatedBookings.forEach(booking => {
-            let status = booking.status;
-            if (newStats.hasOwnProperty(status)) {
-              newStats[status]++;
-            }
-          });
         }
-        
-        setStats(newStats);
-      } else {
-        toast.error(response.message);
-      }
-    } catch (error) {
-      toast.error(error.message || 'Failed to fetch bookings');
-    } finally {
-      setLoading(false);
+        return booking;
+      });
+      
+      setBookings(updatedBookings);
+      setFilteredBookings(updatedBookings);
+      setPagination(response.pagination || {
+        total: 0,
+        page: 1,
+        limit: 10,
+        pages: 1
+      });
+      
+      // ✅ ONLY the new stats block — nothing else
+      const s = response.summary || {};
+      setStats({
+        total:                     s.total                     ?? response.pagination?.total ?? 0,
+        booking_requested:         s.booking_requested         ?? 0,
+        price_quoted:              s.price_quoted              ?? 0,
+        booking_confirmed:         s.booking_confirmed         ?? 0,
+        pending:                   s.pending                   ?? 0,
+        received_at_warehouse:     s.received_at_warehouse     ?? 0,
+        consolidation_in_progress: s.consolidation_in_progress ?? 0,
+        loaded_in_container:       s.loaded_in_container       ?? 0,
+        in_transit:                s.in_transit                ?? 0,
+        arrived_at_destination:    s.arrived_at_destination    ?? 0,
+        customs_clearance:         s.customs_clearance         ?? 0,
+        out_for_delivery:          s.out_for_delivery          ?? 0,
+        delivered:                 s.delivered                 ?? 0,
+        cancelled:                 s.cancelled                 ?? 0,
+        rejected:                  s.rejected                  ?? 0
+      });
+      
+      // ❌ DO NOT add `newStats` code here anymore
+    } else {
+      toast.error(response.message);
     }
-  }, [filters]);
+  } catch (error) {
+    toast.error(error.message || 'Failed to fetch bookings');
+  } finally {
+    setLoading(false);
+  }
+}, [filters]);
 
   useEffect(() => {
     fetchBookings();
@@ -2593,21 +2666,31 @@ export default function BookingsPage() {
       return newFilters;
     });
     
-    if (name === 'status' && value) {
-      setActiveStat('all');
-    }
+    // if (name === 'status' && value) {
+    //   setActiveStat('all');
+    // }
   };
 
-  // const handleInputChange = (e) => {
-  //   const { name, value } = e.target;
-  //   handleFilterChange(name, value);
-  // };
 
-  const handleInputChange = (e) => {
+
+//   const handleInputChange = (e) => {
+//   const { name, value } = e.target;
+//   handleFilterChange(name, value);
+//   if (name === 'status') {
+//     setActiveStat(value || 'all');
+//   }
+// };
+
+const handleInputChange = (e) => {
   const { name, value } = e.target;
   handleFilterChange(name, value);
+
   if (name === 'status') {
-    setActiveStat(value || 'all');
+    // Reset the card highlight ONLY when the user changes status
+    // through the Filters dropdown — not via card click.
+    // We do this by matching the value against the card keys.
+    const matchingCard = ['booking_requested', 'price_quoted', 'booking_confirmed'].includes(value);
+    setActiveStat(matchingCard ? value : 'all');
   }
 };
 
