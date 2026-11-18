@@ -1768,7 +1768,8 @@ export default function ShipmentsPage() {
   const handleSelectAll = () => { if (selectedShipments.length === filteredShipments.length) setSelectedShipments([]); else setSelectedShipments(filteredShipments.map(s => s._id)); };
   const filterByStatus = (status) => { setActiveStat(status); if (status === 'all') setFilteredShipments(shipments); else setFilteredShipments(shipments.filter(s => s.status === status)); if (status !== 'all') setFilters(prev => ({ ...prev, page: 1 })); };
 
-  const visibleStats = [{ key: 'all', label: 'All', value: stats.total, icon: Package, color: 'bg-gray-100 text-gray-600' }, { key: 'active', label: 'Active', value: stats.active, icon: Activity, color: 'bg-blue-100 text-blue-600' }, { key: 'cancelled', label: 'Cancelled', value: stats.cancelled, icon: XCircleSolid, color: 'bg-red-100 text-red-600' }];
+  const visibleStats = [{ key: 'all', label: 'All', value: stats.total, icon: Package, color: 'bg-gray-100 text-gray-600' },
+     { key: 'cancelled', label: 'Cancelled', value: stats.cancelled, icon: XCircleSolid, color: 'bg-red-100 text-red-600' }];
   const getTrackingStatus = (shipment) => { if (shipment.trackingUpdates && shipment.trackingUpdates.length > 0) return shipment.trackingUpdates[shipment.trackingUpdates.length - 1].status; if (shipment.status === 'delivered') return 'delivered'; if (shipment.status === 'in_transit') return 'in_transit'; if (shipment.status === 'out_for_delivery') return 'out_for_delivery'; if (shipment.status === 'arrived_at_destination_port') return 'arrived_at_destination_port'; if (shipment.status === 'customs_cleared') return 'customs_cleared'; if (shipment.status === 'cancelled') return 'exception'; return 'pending'; };
 
   return (

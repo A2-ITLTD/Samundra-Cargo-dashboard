@@ -2724,14 +2724,16 @@ const EditConsolidationModal = ({ isOpen, onClose, consolidation, onUpdated }) =
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl max-w-3xl w-full max-h-[80vh] overflow-hidden">
-        <div className="p-4 border-b">
+   return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header — fixed */}
+        <div className="flex-shrink-0 p-4 border-b">
           <h3 className="text-base font-bold">Edit Consolidation</h3>
         </div>
-        
-        <div className="p-4 space-y-3 overflow-y-auto max-h-[65vh] pr-3">
+
+        {/* Body — scrollable, takes remaining space */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 pr-3">
           {/* Sender / Receiver compact info */}
           {consolidation?.shipments && consolidation.shipments.length > 0 && (
             (() => {
@@ -2815,7 +2817,6 @@ const EditConsolidationModal = ({ isOpen, onClose, consolidation, onUpdated }) =
               </div>
             </div>
           </div>
-
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Seal Number(s)</label>
@@ -2904,7 +2905,8 @@ const EditConsolidationModal = ({ isOpen, onClose, consolidation, onUpdated }) =
           </div>
         </div>
 
-        <div className="p-4 border-t flex justify-end space-x-2">
+        {/* Footer — fixed, always visible */}
+        <div className="flex-shrink-0 p-4 border-t flex justify-end space-x-2 bg-white">
           <button onClick={onClose} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">
             Cancel
           </button>

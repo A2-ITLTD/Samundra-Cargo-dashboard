@@ -66,9 +66,17 @@ export const createBooking = async (bookingData) => {
     console.error('Create booking error:', error);
     return {
       success: false,
-      message: isTimeoutError(error)
-        ? 'Request timed out. It may still be saved, please refresh bookings before retrying.'
-        : (error.response?.data?.error || error.message || 'Failed to create booking'),
+     message: isTimeoutError(error)
+  ? 'Request timed out. It may still be saved, please refresh bookings before retrying.'
+  : (
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      (Array.isArray(error.response?.data?.errors)
+        ? error.response.data.errors.map(e => e.msg || e.message).join(', ')
+        : '') ||
+      error.message ||
+      'Failed to create booking'
+    ),
       error: error.response?.data
     };
   }
@@ -271,11 +279,24 @@ export const acceptQuote = async (bookingId, notes = '') => {
       }
     }
 
+    // return {
+    //   success: false,
+    //   message: error.response?.data?.error || error.message || 'Failed to accept quote',
+    //   error: error.response?.data
+    // };
+
     return {
-      success: false,
-      message: error.response?.data?.error || error.message || 'Failed to accept quote',
-      error: error.response?.data
-    };
+  success: false,
+  message:
+    error.response?.data?.message ||
+    error.response?.data?.error ||
+    (Array.isArray(error.response?.data?.errors)
+      ? error.response.data.errors.map(e => e.msg || e.message).join(', ')
+      : '') ||
+    error.message ||
+    'Failed to accept quote',
+  error: error.response?.data
+};
   }
   });
 };
