@@ -1,42 +1,52 @@
 // utils/SessionHelper.js
 import Cookies from 'js-cookie';
 
+// Dashboard-scoped keys: the customer portal uses the same generic names, so
+// without a prefix signing in to one panel overwrites the other's token.
+const PREFIX = 'dash_';
+const KEYS = {
+  token: `${PREFIX}authToken`,
+  tokenAlt: `${PREFIX}token`,
+  email: `${PREFIX}email`,
+  otp: `${PREFIX}otp`,
+  user: `${PREFIX}user`,
+  userDetails: `${PREFIX}userDetails`,
+};
+const TOKEN_KEYS = [KEYS.token, KEYS.tokenAlt];
+const USER_KEYS = [KEYS.userDetails, KEYS.user];
+
+const cookieOptions = (days) => ({
+  expires: days,
+  // A production build does not guarantee HTTPS (e.g. cPanel static hosting),
+  // so Secure must follow the real protocol rather than NODE_ENV.
+  secure: typeof window !== 'undefined' && window.location.protocol === 'https:',
+  sameSite: 'Lax',
+  path: '/',
+});
+
+const writeCookie = (name, value, days) => {
+  Cookies.set(name, value, cookieOptions(days));
+};
+
 // ============ TOKEN MANAGEMENT ============
 export const setAuthToken = (token) => {
   if (typeof window !== 'undefined') {
-    // Keep both keys for backward compatibility.
-    Cookies.set('authToken', token, {
-      expires: 7,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
-      path: '/'
+    TOKEN_KEYS.forEach((key) => {
+      writeCookie(key, token, 7);
+      localStorage.setItem(key, token);
     });
-    Cookies.set('token', token, {
-      expires: 7,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
-      path: '/'
-    });
-    localStorage.setItem('authToken', token);
-    localStorage.setItem('token', token);
   }
 };
 
 export const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    // Cookie is the single source of truth — the Next.js middleware can only
-    // read cookies, so falling back to localStorage here would desync the two
-    // (cookie expired, localStorage still set) and cause a /dashboard <-> /
-    // redirect loop. If the cookie is gone the session is over.
-    const token = Cookies.get('authToken') || Cookies.get('token');
-    if (!token) {
-      // Cookie expired/removed: drop any stale localStorage token so nothing
-      // else treats the user as logged in.
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('token');
-      return null;
-    }
-    return token;
+  if (typeof window === 'undefined') return null;
+  for (const key of TOKEN_KEYS) {
+    const fromCookie = Cookies.get(key);
+    if (fromCookie) return fromCookie;
+  }
+  for (const key of TOKEN_KEYS) {
+    const fromStorage = localStorage.getItem(key);
+    if (fromStorage) return fromStorage;
   }
   return null;
 };
@@ -44,74 +54,47 @@ export const getAuthToken = () => {
 // ============ EMAIL MANAGEMENT ============
 export const setEmail = (email) => {
   if (typeof window !== 'undefined') {
-    Cookies.set('email', email, {
-      expires: 1,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
-      path: '/'
-    });
-    localStorage.setItem('email', email);
+    writeCookie(KEYS.email, email, 1);
+    localStorage.setItem(KEYS.email, email);
   }
 };
 
 export const getEmail = () => {
-  if (typeof window !== 'undefined') {
-    return Cookies.get('email') || localStorage.getItem('email');
-  }
-  return null;
+  if (typeof window === 'undefined') return null;
+  return Cookies.get(KEYS.email) || localStorage.getItem(KEYS.email);
 };
 
 // ============ OTP MANAGEMENT ============
 export const setOTP = (otp) => {
   if (typeof window !== 'undefined') {
-    Cookies.set('otp', otp, {
-      expires: 1 / 24,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
-      path: '/'
-    });
-    localStorage.setItem('otp', otp);
+    writeCookie(KEYS.otp, otp, 1 / 24);
+    localStorage.setItem(KEYS.otp, otp);
   }
 };
 
 export const getOTP = () => {
-  if (typeof window !== 'undefined') {
-    return Cookies.get('otp') || localStorage.getItem('otp');
-  }
-  return null;
+  if (typeof window === 'undefined') return null;
+  return Cookies.get(KEYS.otp) || localStorage.getItem(KEYS.otp);
 };
 
 // ============ USER DETAILS MANAGEMENT ============
 export const setUserDetails = (user) => {
   if (typeof window !== 'undefined') {
     const userStr = JSON.stringify(user);
-    Cookies.set('userDetails', userStr, {
-      expires: 7,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
-      path: '/'
+    USER_KEYS.forEach((key) => {
+      writeCookie(key, userStr, 7);
+      localStorage.setItem(key, userStr);
     });
-    Cookies.set('user', userStr, {
-      expires: 7,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
-      path: '/'
-    });
-    localStorage.setItem('userDetails', userStr);
-    localStorage.setItem('user', userStr);
   }
 };
 
 export const getUserDetails = () => {
-  if (typeof window !== 'undefined') {
-    const userStr =
-      Cookies.get('userDetails') ||
-      Cookies.get('user') ||
-      localStorage.getItem('userDetails') ||
-      localStorage.getItem('user');
-    if (userStr) {
+  if (typeof window === 'undefined') return null;
+  for (const key of USER_KEYS) {
+    const raw = Cookies.get(key) || localStorage.getItem(key);
+    if (raw) {
       try {
-        return JSON.parse(userStr);
+        return JSON.parse(raw);
       } catch (e) {
         console.error('Error parsing user details:', e);
         return null;
@@ -121,39 +104,28 @@ export const getUserDetails = () => {
   return null;
 };
 
-// Cookies were set with path:'/', so removal MUST also pass path:'/'.
-// Otherwise js-cookie removes at the current page path only, the cookie
-// survives, and the middleware keeps redirecting to /dashboard forever.
-const removeAllCookies = () => {
-  ['authToken', 'token', 'email', 'otp', 'userDetails', 'user'].forEach((name) => {
-    Cookies.remove(name, { path: '/' });
-    Cookies.remove(name); // also clear any legacy path-less cookie
-  });
-};
-
-// ============ SESSION CLEAR ============
-export const clearAllSessions = () => {
+const clearSessionData = () => {
   if (typeof window !== 'undefined') {
-    removeAllCookies();
-    localStorage.clear();
-    window.location.href = "/";
+    [...TOKEN_KEYS, KEYS.email, KEYS.otp, ...USER_KEYS].forEach((name) => {
+      Cookies.remove(name, { path: '/' });
+      Cookies.remove(name);
+      localStorage.removeItem(name);
+    });
+    window.dispatchEvent(new Event('authChange'));
   }
 };
 
-// ============ LOGOUT ============
-export const logout = () => {
-  if (typeof window !== 'undefined') {
-    removeAllCookies();
-    localStorage.clear();
-    window.location.href = "/";
+// ============ SESSION CLEAR / LOGOUT ============
+export const clearAllSessions = clearSessionData;
+export const logout = clearSessionData;
+
+export const expireSession = () => {
+  const hadToken = Boolean(getAuthToken());
+  clearSessionData();
+  if (hadToken && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('sessionExpired'));
   }
 };
 
 // ============ CHECK AUTHENTICATION ============
-export const isAuthenticated = () => {
-  if (typeof window !== 'undefined') {
-    const token = getAuthToken();
-    return !!token;
-  }
-  return false;
-};
+export const isAuthenticated = () => Boolean(getAuthToken());

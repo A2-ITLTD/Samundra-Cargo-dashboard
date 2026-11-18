@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { toast } from 'react-toastify';
 import { createBooking } from '@/services/booking';
 import { getAllUsers } from '@/services/Authentication';
+import { getUserDetails } from '@/utils/SessionHelper';
 
 // Location functions
 import { getStates, fetchCitiesByState } from '@/services/location';
@@ -535,19 +536,13 @@ export default function CreateBooking() {
   // }, []);
 
   useEffect(() => {
-  const loadInitialData = async () => {
-    const raw = JSON.parse(localStorage.getItem('user') || '{}');
-    const id = raw._id || raw.id || raw.userId;   // ← add this
-    if (!id) {
-      toast.error('Session expired. Please log in again.');
-      router.push('/login');
-      return;
-    }
-    setAdminUser({ ...raw, _id: id });            // ← normalize
-    await loadCustomers();
-  };
-  loadInitialData();
-}, [router]);
+    const loadInitialData = async () => {
+      const user = getUserDetails() || {};
+      setAdminUser(user);
+      await loadCustomers();
+    };
+    loadInitialData();
+  }, []);
 
   const loadCustomers = async () => {
     setLoadingCustomers(true);
@@ -894,6 +889,8 @@ export default function CreateBooking() {
     handleInputChange(e);
 
     if (value && formData.receiver.address.country) {
+      setPostalCodes(getPostalCodes());
+      
       setFormData(prev => ({
         ...prev,
         receiver: {
@@ -1144,41 +1141,46 @@ export default function CreateBooking() {
   //   }
   //   if (packageError) return;
     
-  //   if (!formData.sender.name) {
-  //     toast.error('👤 Sender name is required');
-  //     setCurrentStep(3);
-  //     return;
-  //   }
-  //   if (!formData.sender.email) {
-  //     toast.error('📧 Sender email is required');
-  //     setCurrentStep(3);
-  //     return;
-  //   }
-  //   if (!formData.sender.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-  //     toast.error('📧 Please enter a valid sender email address');
-  //     setCurrentStep(3);
-  //     return;
-  //   }
-  //   if (!formData.sender.phone) {
-  //     toast.error('📞 Sender phone number is required');
-  //     setCurrentStep(3);
-  //     return;
-  //   }
-  //   if (!formData.sender.address.city) {
-  //     toast.error('🏙️ Sender city is required');
-  //     setCurrentStep(3);
-  //     return;
-  //   }
-  //   if (!formData.sender.address.state) {
-  //     toast.error('🗺️ Sender state is required');
-  //     setCurrentStep(3);
-  //     return;
-  //   }
-  //   if (!formData.sender.address.country) {
-  //     toast.error('🌍 Sender country is required');
-  //     setCurrentStep(3);
-  //     return;
-  //   }
+    if (!formData.sender.name) {
+      toast.error('👤 Sender name is required');
+      setCurrentStep(3);
+      return;
+    }
+    if (!formData.sender.email) {
+      toast.error('📧 Sender email is required');
+      setCurrentStep(3);
+      return;
+    }
+    if (!formData.sender.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      toast.error('📧 Please enter a valid sender email address');
+      setCurrentStep(3);
+      return;
+    }
+    if (!formData.sender.phone) {
+      toast.error('📞 Sender phone number is required');
+      setCurrentStep(3);
+      return;
+    }
+    if (!formData.sender.address.addressLine1) {
+      toast.error('📍 Sender address is required');
+      setCurrentStep(3);
+      return;
+    }
+    if (!formData.sender.address.city) {
+      toast.error('🏙️ Sender city is required');
+      setCurrentStep(3);
+      return;
+    }
+    if (!formData.sender.address.state) {
+      toast.error('🗺️ Sender state is required');
+      setCurrentStep(3);
+      return;
+    }
+    if (!formData.sender.address.country) {
+      toast.error('🌍 Sender country is required');
+      setCurrentStep(3);
+      return;
+    }
     
   //   if (!formData.receiver.name) {
   //     toast.error('👤 Receiver name is required');
@@ -1246,35 +1248,35 @@ export default function CreateBooking() {
         
   //       serviceType: formData.serviceType,
         
-  //       shipmentDetails: {
-  //         origin: formData.shipmentDetails.origin,
-  //         destination: formData.shipmentDetails.destination,
-  //         shippingMode: formData.shipmentDetails.shippingMode,
-  //         vesselName: formData.shipmentDetails.vesselName,
-  //         voyageNumber: formData.shipmentDetails.voyageNumber,
-  //         packageDetails: formData.shipmentDetails.packageDetails.map(pkg => ({
-  //           description: pkg.description,
-  //           packagingType: pkg.packagingType,
-  //           quantity: Number(pkg.quantity),
-  //           weight: Number(pkg.weight),
-  //           volume: Number(pkg.volume),
-  //           dimensions: {
-  //             length: Number(pkg.dimensions.length) || 0,
-  //             width: Number(pkg.dimensions.width) || 0,
-  //             height: Number(pkg.dimensions.height) || 0,
-  //             unit: 'cm'
-  //           },
-  //           productCategory: pkg.productCategory || 'Others',
-  //           hsCode: pkg.hsCode || '',
-  //           value: {
-  //             amount: Number(pkg.value.amount) || 0,
-  //             currency: formData.payment.currency || 'USD'
-  //           },
-  //           hazardous: pkg.hazardous || false
-  //         })),
-  //         specialInstructions: formData.shipmentDetails.specialInstructions || '',
-  //         referenceNumber: formData.customerReference || ''
-  //       },
+        shipmentDetails: {
+          origin: formData.shipmentDetails.origin,
+          destination: formData.shipmentDetails.destination,
+          shippingMode: formData.shipmentDetails.shippingMode,
+          vesselName: formData.shipmentDetails.vesselName,
+          voyageNumber: formData.shipmentDetails.voyageNumber,
+          packageDetails: formData.shipmentDetails.packageDetails.map(pkg => ({
+            description: pkg.description,
+            packagingType: pkg.packagingType || 'carton',
+            quantity: Number(pkg.quantity),
+            weight: Number(pkg.weight),
+            volume: Number(pkg.volume),
+            dimensions: {
+              length: Number(pkg.dimensions.length) || 0,
+              width: Number(pkg.dimensions.width) || 0,
+              height: Number(pkg.dimensions.height) || 0,
+              unit: 'cm'
+            },
+            productCategory: pkg.productCategory || 'Others',
+            hsCode: pkg.hsCode || '',
+            value: {
+              amount: Number(pkg.value.amount) || 0,
+              currency: formData.payment.currency || 'USD'
+            },
+            hazardous: pkg.hazardous || false
+          })),
+          specialInstructions: formData.shipmentDetails.specialInstructions || '',
+          referenceNumber: formData.customerReference || ''
+        },
         
   //       dates: {
   //           requested: formData.dates.requested,
@@ -1343,19 +1345,17 @@ export default function CreateBooking() {
       
   //     toast.dismiss(loadingToast);
       
-  //     if (response.success) {
-  //       toast.success('🎉 Booking created successfully! Redirecting...');
-  //       setShowSuccess(true);
-  //       setTimeout(() => {
-  //         router.push('/Bookings/all_bookings');
-  //       }, 2000);
-  //     } else {
-  //       const errorMsg = response.message || 'Failed to create booking';
-  //       toast.error(`❌ ${errorMsg}`);
-  //       setServerErrors([{ msg: errorMsg }]);
-  //     }
-  //   } catch (error) {
-  //     toast.dismiss(loadingToast);
+      if (response.success) {
+        toast.success('🎉 Booking created successfully!');
+        setShowSuccess(true);
+        router.replace('/Bookings/all_bookings');
+      } else {
+        const errorMsg = response.message || 'Failed to create booking';
+        toast.error(`❌ ${errorMsg}`);
+        setServerErrors([{ msg: errorMsg }]);
+      }
+    } catch (error) {
+      toast.dismiss(loadingToast);
       
   //     console.error('❌ ERROR DETAILS:', error);
       
@@ -2614,7 +2614,7 @@ const handleSubmit = async (e) => {
                       <div className="ml-2 flex-1">
                         <p className="text-xs font-medium text-yellow-800">Review Required</p>
                         <p className="text-xs text-yellow-700 mt-1">
-                          Check all details. Click "Confirm Details" before submitting the booking.
+                          Check all details. Click &quot;Confirm Details&quot; before submitting the booking.
                         </p>
                       </div>
                     </div>

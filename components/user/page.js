@@ -1,6 +1,6 @@
 // pages/admin/users/index.js
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Users,
@@ -29,7 +29,7 @@ import {
   RefreshCw,
   Plus
 } from 'lucide-react';
-import { getAllUsers, deleteUser, getUsersByRole, isAdmin } from '@/services/Authentication';
+import { getAllUsers, getUserStats, deleteUser, isAdmin } from '@/services/Authentication';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
 
@@ -42,6 +42,7 @@ const AdminUsersPage = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [stats, setStats] = useState({
@@ -54,27 +55,29 @@ const AdminUsersPage = () => {
 
   const usersPerPage = 10;
 
-  useEffect(() => {
-    // Check if user is admin
-    if (!isAdmin()) {
-      router.push('/dashboard');
-      toast.error('Unauthorized access', {
-        position: "top-right",
-        autoClose: 3000
-      });
-      return;
-    }
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async (overrides = {}) => {
+    const page = overrides.page ?? currentPage;
+    const role = overrides.role ?? selectedRole;
+    const status = overrides.status ?? selectedStatus;
+    const search = overrides.search ?? searchTerm;
     setLoading(true);
     try {
-      const response = await getAllUsers();
+      const response = await getAllUsers({
+        page,
+        limit: usersPerPage,
+        role,
+        status,
+        search
+      });
       if (response.success) {
-        setUsers(response.data);
-        calculateStats(response.data);
-        setTotalPages(Math.ceil(response.data.length / usersPerPage));
+        setUsers(response.data || []);
+        setTotalUsers(response.pagination?.total ?? response.count ?? 0);
+        const pages = Math.max(1, response.pagination?.pages || 1);
+        setTotalPages(pages);
+        if (page > pages) {
+          setCurrentPage(pages);
+          return;
+        }
       }
     } catch (error) {
       toast.error('Failed to fetch users', {
@@ -84,23 +87,31 @@ const AdminUsersPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, selectedRole, selectedStatus, searchTerm]);
 
-  const calculateStats = (userList) => {
-    const newStats = {
-      total: userList.length,
-      admin: 0,
-      operations: 0,
-      warehouse: 0,
-      customer: 0
-    };
+  const fetchUserStats = useCallback(async () => {
+    try {
+      const response = await getUserStats();
+      if (response.success && response.stats) setStats(response.stats);
+    } catch (error) {
+      console.error('Failed to fetch user statistics:', error);
+    }
+  }, []);
 
-    userList.forEach(user => {
-      newStats[user.role]++;
-    });
+  useEffect(() => {
+    if (!isAdmin()) {
+      router.push('/dashboard');
+      toast.error('Unauthorized access', { position: 'top-right', autoClose: 3000 });
+      return;
+    }
 
-    setStats(newStats);
-  };
+    const timer = setTimeout(() => fetchUsers(), searchTerm ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [currentPage, searchTerm, selectedRole, selectedStatus, fetchUsers, router]);
+
+  useEffect(() => {
+    if (isAdmin()) fetchUserStats();
+  }, [fetchUserStats]);
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
@@ -113,6 +124,7 @@ const AdminUsersPage = () => {
           autoClose: 3000
         });
         fetchUsers();
+        fetchUserStats();
         setShowDeleteModal(false);
         setSelectedUser(null);
       }
@@ -124,49 +136,12 @@ const AdminUsersPage = () => {
     }
   };
 
-  const handleRoleFilter = async (role) => {
+  const handleRoleFilter = (role) => {
     setSelectedRole(role);
-    setLoading(true);
-    
-    if (role === 'all') {
-      fetchUsers();
-    } else {
-      try {
-        const response = await getUsersByRole(role);
-        if (response.success) {
-          setUsers(response.data);
-          setTotalPages(Math.ceil(response.data.length / usersPerPage));
-        }
-      } catch (error) {
-        toast.error('Failed to filter users', {
-          position: "top-right",
-          autoClose: 5000
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
     setCurrentPage(1);
   };
 
-  // Filter users based on search and status
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = 
-      user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = selectedStatus === 'all' || user.status === selectedStatus;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  // Pagination
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+  const currentUsers = users;
 
   const getRoleIcon = (role) => {
     switch (role) {
@@ -228,7 +203,7 @@ const AdminUsersPage = () => {
                 <RefreshCw className="w-5 h-5" />
               </button>
               <button
-                onClick={() => router.push('/users/create')}
+                onClick={() => router.push('/users/create_staff')}
                 className="inline-flex items-center px-4 py-2 bg-[#E67E22] text-white rounded-lg hover:bg-[#d35400] transition-colors"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -275,7 +250,10 @@ const AdminUsersPage = () => {
                   type="text"
                   placeholder="Search users..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent text-sm"
                 />
               </div>
@@ -300,7 +278,10 @@ const AdminUsersPage = () => {
             <div className="w-40">
               <select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent text-sm"
               >
                 <option value="all">All Status</option>
@@ -409,14 +390,14 @@ const AdminUsersPage = () => {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
                           <Link
-                            href={`/view/${user._id}`}
+                            href={`/view?id=${encodeURIComponent(user._id)}`}
                             className="p-1 text-gray-600 hover:text-[#122652] hover:bg-gray-100 rounded transition-colors"
                             title="View Profile"
                           >
                             <Eye className="w-4 h-4" />
                           </Link>
                           <Link
-                            href={`/edit/${user._id}/edit`}
+                            href={`/edit?id=${encodeURIComponent(user._id)}`}
                             className="p-1 text-gray-600 hover:text-[#E67E22] hover:bg-gray-100 rounded transition-colors"
                             title="Edit User"
                           >
@@ -447,10 +428,10 @@ const AdminUsersPage = () => {
           </div>
 
           {/* Pagination */}
-          {!loading && filteredUsers.length > 0 && (
+          {!loading && totalUsers > 0 && (
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Showing {indexOfFirstUser + 1} to {Math.min(indexOfLastUser, filteredUsers.length)} of {filteredUsers.length} users
+                Showing {users.length ? ((currentPage - 1) * usersPerPage) + 1 : 0} to {((currentPage - 1) * usersPerPage) + users.length} of {totalUsers} users
               </p>
               <div className="flex items-center space-x-2">
                 <button

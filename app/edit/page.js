@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getUserById, updateUser, isAdmin } from '@/services/Authentication';
 import { toast } from 'react-toastify';
@@ -38,14 +38,17 @@ import { BsPersonBadge, BsShop, BsCurrencyDollar } from 'react-icons/bs';
 
 const EditUserPage = () => {
   const router = useRouter();
-  const params = useParams();
-  const userId = params?.id;
+  const [userId, setUserId] = useState(null);
   
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState({});
+
+  useEffect(() => {
+    setUserId(new URLSearchParams(window.location.search).get('id'));
+  }, []);
 
   useEffect(() => {
     // Check if user is admin
@@ -173,7 +176,7 @@ const EditUserPage = () => {
           position: "top-right",
           autoClose: 3000
         });
-        router.push(`/users/${userId}`);
+        router.push(`/view?id=${encodeURIComponent(userId)}`);
       } else {
         toast.error(response?.message || 'Failed to update user');
       }
@@ -235,7 +238,7 @@ const EditUserPage = () => {
             <FiAlertCircle className="w-10 h-10 text-red-500" />
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">User Not Found</h2>
-          <p className="text-gray-600 mb-6">The user you're trying to edit doesn't exist.</p>
+          <p className="text-gray-600 mb-6">The user you&apos;re trying to edit doesn&apos;t exist.</p>
           <button
             onClick={() => router.push('/users')}
             className="px-6 py-3 bg-[#E67E22] text-white rounded-xl hover:bg-[#d35400] transition-colors inline-flex items-center font-medium shadow-lg shadow-red-200"
@@ -268,7 +271,7 @@ const EditUserPage = () => {
             </div>
             <div className="flex items-center space-x-3">
               <Link
-                href={`/users/${userId}`}
+                href={`/view?id=${encodeURIComponent(userId)}`}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
               >
                 Cancel
@@ -869,7 +872,7 @@ const EditUserPage = () => {
                   <div className="ml-3">
                     <h4 className="text-sm font-medium text-blue-800">Password Management</h4>
                     <p className="text-sm text-blue-700 mt-1">
-                      To reset this user's password, they need to use the "Forgot Password" option on the login page.
+                      To reset this user&apos;s password, they need to use the &quot;Forgot Password&quot; option on the login page.
                       Passwords cannot be changed directly by admins for security reasons.
                     </p>
                   </div>

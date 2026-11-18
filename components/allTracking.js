@@ -31,7 +31,7 @@ const STATUS_CONFIG = {
   'loaded_into_container': { label: 'Loaded into Container', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
   'container_sealed': { label: 'Container Sealed', color: 'bg-blue-300 text-blue-900 border-blue-200' },
   'departed_port_of_origin': { label: 'Departed Port of Origin', color: 'bg-red-100 text-red-700 border-red-200' },
-  'in_transit_sea_freight': { label: 'In Transit (Sea Freight)', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  'in_transit_sea_freight': { label: 'In Transit', color: 'bg-blue-50 text-blue-700 border-blue-200' },
   'arrived_at_destination_port': { label: 'Arrived at Destination Port', color: 'bg-green-50 text-green-700 border-green-200' },
   'under_customs_clearance': { label: 'Under Customs Clearance', color: 'bg-blue-100 text-blue-800 border-blue-200' },
   'customs_cleared': { label: 'Customs Cleared', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },

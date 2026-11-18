@@ -30,16 +30,14 @@ export default function Topbar() {
 
   // Check if user is logged in
   useEffect(() => {
-    const token = getAuthToken();
-    const userData = getUserDetails();
-    
-    if (token && userData) {
-      setIsLoggedIn(true);
-      setUser(userData);
-    } else {
-      setIsLoggedIn(false);
-      setUser(null);
-    }
+    const timeoutId = window.setTimeout(() => {
+      const token = getAuthToken();
+      const userData = getUserDetails();
+
+      setIsLoggedIn(Boolean(token && userData));
+      setUser(token && userData ? userData : null);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [pathname]); // Re-check when route changes
 
   // Don't render topbar if not logged in

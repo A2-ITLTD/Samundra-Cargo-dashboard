@@ -276,9 +276,7 @@ useEffect(() => {
             }
           );
           
-          setTimeout(() => {
-            router.push(redirectUrl);
-          }, 3000);
+          router.replace(redirectUrl);
         } else {
           toast.error(response.message || 'Invalid email or password', {
             position: 'top-right',

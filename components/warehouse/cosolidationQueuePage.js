@@ -645,8 +645,7 @@ const CreateConsolidationModal = ({ isOpen, onClose, group, selectedShipments, o
           for (const receiptId of receiptIds) {
             try {
               // Use the shared axiosInstance so the request carries the cookie
-              // auth token and the configured API base URL (was hardcoded to
-              // http://localhost:5000 with a null localStorage token + wrong path).
+              // auth token and the configured API base URL.
               await axiosInstance.patch(`/receipts/${receiptId}/consolidate`, {
                 status: 'consolidated'
               });
@@ -896,7 +895,7 @@ export default function ConsolidationQueuePage() {
                 <RefreshCw className={`h-5 w-5 text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
               <Link
-                href="/warehouse/consolidations"
+                href="/warehouse/all-consolidation"
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm flex items-center"
               >
                 <Eye className="h-4 w-4 mr-2" />

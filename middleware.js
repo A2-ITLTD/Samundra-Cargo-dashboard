@@ -22,7 +22,7 @@ export function middleware(request) {
   const { pathname } = request.nextUrl;
   
   // টোকেন চেক করুন
-  const token = request.cookies.get('authToken')?.value || request.cookies.get('token')?.value;
+  const token = request.cookies.get('dash_authToken')?.value || request.cookies.get('dash_token')?.value;
   const isLoggedIn = !!token;
   
   // চেক করুন রুটটি প্রটেক্টেড কিনা

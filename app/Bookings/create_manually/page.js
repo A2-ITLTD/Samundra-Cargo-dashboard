@@ -22,7 +22,7 @@ import {
   Receipt, Clock, Flag, Check,
   Shield
 } from 'lucide-react';
-import { getAuthToken } from '@/utils/SessionHelper';
+import { getAuthToken, getUserDetails } from '@/utils/SessionHelper';
 
 // ==================== CONSTANTS ====================
 
@@ -442,7 +442,7 @@ export default function CreateBooking() {
   // ==================== LOAD ADMIN USER ====================
   useEffect(() => {
     const loadInitialData = async () => {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = getUserDetails() || {};
       setAdminUser(user);
       
       const initialTimeline = [{
@@ -1119,9 +1119,7 @@ if (!finalTrackingNumber) {
       }
       setShowSuccess(true);
       
-      setTimeout(() => {
-        router.push('/shippings/manual-shipping');
-      }, 2000);
+      router.replace('/shippings/manual-shipping');
     } else {
       const errorMsg = response?.message || 'Failed to create shipment';
       console.error('❌ Shipment creation failed:', errorMsg);
@@ -1776,7 +1774,7 @@ if (!finalTrackingNumber) {
                       <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
                       <div className="ml-2">
                         <p className="text-xs font-medium text-yellow-800">Review Required</p>
-                        <p className="text-xs text-yellow-700">Please review all details below, then click "Confirm Details" to submit the booking.</p>
+                        <p className="text-xs text-yellow-700">Please review all details below, then click &quot;Confirm Details&quot; to submit the booking.</p>
                       </div>
                     </div>
                   </div>
