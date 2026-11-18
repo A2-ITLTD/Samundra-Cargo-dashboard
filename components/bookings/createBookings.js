@@ -9,7 +9,7 @@ import { createBooking } from '@/services/booking';
 import { getAllUsers } from '@/services/Authentication';
 
 // Location functions
-import { getStates, fetchCitiesByState, getPostalCodes } from '@/services/location';
+import { getStates, fetchCitiesByState } from '@/services/location';
 
 // Icons
 import {
@@ -69,8 +69,8 @@ const SERVICE_TYPES = [
 ];
 
 const ORIGINS = [
-  { value: 'China Warehouse', label: 'China - Main Warehouse' },
-  { value: 'Thailand Warehouse', label: 'Thailand - Regional Hub' }
+  { value: 'China', label: 'China' },
+  { value: 'Thailand', label: 'Thailand' }
 ];
 
 const DESTINATIONS = [
@@ -423,7 +423,7 @@ export default function CreateBooking() {
     },
     
     shipmentDetails: {
-      origin: 'China Warehouse',
+      origin: 'China',
       destination: 'USA',
       shippingMode: 'DDU',
       packageDetails: [{
@@ -525,14 +525,29 @@ export default function CreateBooking() {
   const [touched, setTouched] = useState({});
 
   // ==================== LOAD CUSTOMERS ====================
+  // useEffect(() => {
+  //   const loadInitialData = async () => {
+  //     const user = JSON.parse(localStorage.getItem('user') || '{}');
+  //     setAdminUser(user);
+  //     await loadCustomers();
+  //   };
+  //   loadInitialData();
+  // }, []);
+
   useEffect(() => {
-    const loadInitialData = async () => {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      setAdminUser(user);
-      await loadCustomers();
-    };
-    loadInitialData();
-  }, []);
+  const loadInitialData = async () => {
+    const raw = JSON.parse(localStorage.getItem('user') || '{}');
+    const id = raw._id || raw.id || raw.userId;   // ← add this
+    if (!id) {
+      toast.error('Session expired. Please log in again.');
+      router.push('/login');
+      return;
+    }
+    setAdminUser({ ...raw, _id: id });            // ← normalize
+    await loadCustomers();
+  };
+  loadInitialData();
+}, [router]);
 
   const loadCustomers = async () => {
     setLoadingCustomers(true);
@@ -854,13 +869,31 @@ export default function CreateBooking() {
     }
   };
 
-  const handleCityChange = (e) => {
+  // const handleCityChange = (e) => {
+  //   const { value } = e.target;
+  //   handleInputChange(e);
+    
+  //   if (value && formData.receiver.address.country) {
+  //     loadPostalCodes(formData.receiver.address.country, value);
+      
+  //     setFormData(prev => ({
+  //       ...prev,
+  //       receiver: {
+  //         ...prev.receiver,
+  //         address: {
+  //           ...prev.receiver.address,
+  //           city: value,
+  //           postalCode: ''
+  //         }
+  //       }
+  //     }));
+  //   }
+  // };
+    const handleCityChange = (e) => {
     const { value } = e.target;
     handleInputChange(e);
-    
+
     if (value && formData.receiver.address.country) {
-      loadPostalCodes(formData.receiver.address.country, value);
-      
       setFormData(prev => ({
         ...prev,
         receiver: {
@@ -1027,342 +1060,711 @@ export default function CreateBooking() {
 
   // ==================== SUBMIT HANDLER ====================
   
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
     
-    if (currentStep !== 4) {
-      toast.info('Please complete all steps first');
-      return;
-    }
+  //   if (currentStep !== 4) {
+  //     toast.info('Please complete all steps first');
+  //     return;
+  //   }
     
-    if (!isReviewConfirmed) {
-      toast.warning('⚠️ Please review all details and click "Confirm Details" before creating booking');
-      return;
-    }
+  //   if (!isReviewConfirmed) {
+  //     toast.warning('⚠️ Please review all details and click "Confirm Details" before creating booking');
+  //     return;
+  //   }
     
-    // ========== CHECK ALL REQUIRED FIELDS ==========
+  //   // ========== CHECK ALL REQUIRED FIELDS ==========
     
-    if (!selectedCustomer || !formData.customer) {
-      toast.error('❌ Please select a customer first');
-      setCurrentStep(1);
-      return;
-    }
+  //   if (!selectedCustomer || !formData.customer) {
+  //     toast.error('❌ Please select a customer first');
+  //     setCurrentStep(1);
+  //     return;
+  //   }
     
-    if (!formData.shipmentClassification.mainType) {
-      toast.error('❌ Please select shipment type');
-      setCurrentStep(1);
-      return;
-    }
-    if (!formData.shipmentClassification.subType) {
-      toast.error('❌ Please select shipment sub-type');
-      setCurrentStep(1);
-      return;
-    }
+  //   if (!formData.shipmentClassification.mainType) {
+  //     toast.error('❌ Please select shipment type');
+  //     setCurrentStep(1);
+  //     return;
+  //   }
+  //   if (!formData.shipmentClassification.subType) {
+  //     toast.error('❌ Please select shipment sub-type');
+  //     setCurrentStep(1);
+  //     return;
+  //   }
     
-    if (!formData.payment.mode) {
-      toast.error('❌ Please select payment mode');
-      setCurrentStep(1);
-      return;
-    }
-     if (!formData.dates.requested) {
-      toast.error('📅 Please select a booking date');
-      setCurrentStep(1);
-      return;
-    }
+  //   if (!formData.payment.mode) {
+  //     toast.error('❌ Please select payment mode');
+  //     setCurrentStep(1);
+  //     return;
+  //   }
+  //    if (!formData.dates.requested) {
+  //     toast.error('📅 Please select a booking date');
+  //     setCurrentStep(1);
+  //     return;
+  //   }
     
-    if (!formData.dates.estimatedDeparture) {
-      toast.error('📅 Please select departure date');
-      setCurrentStep(1);
-      return;
-    }
-    if (!formData.dates.estimatedArrival) {
-      toast.error('📅 Please select arrival date');
-      setCurrentStep(1);
-      return;
-    }
+  //   if (!formData.dates.estimatedDeparture) {
+  //     toast.error('📅 Please select departure date');
+  //     setCurrentStep(1);
+  //     return;
+  //   }
+  //   if (!formData.dates.estimatedArrival) {
+  //     toast.error('📅 Please select arrival date');
+  //     setCurrentStep(1);
+  //     return;
+  //   }
     
-    if (formData.shipmentDetails.packageDetails.length === 0) {
-      toast.error('📦 Please add at least one package');
+  //   if (formData.shipmentDetails.packageDetails.length === 0) {
+  //     toast.error('📦 Please add at least one package');
+  //     setCurrentStep(2);
+  //     return;
+  //   }
+    
+  //   let packageError = false;
+  //   for (let idx = 0; idx < formData.shipmentDetails.packageDetails.length; idx++) {
+  //     const pkg = formData.shipmentDetails.packageDetails[idx];
+  //     if (!pkg.description) {
+  //       toast.error(`📦 Package ${idx + 1}: Description is required`);
+  //       setCurrentStep(2);
+  //       packageError = true;
+  //       break;
+  //     }
+  //     if (!pkg.quantity || pkg.quantity < 1) {
+  //       toast.error(`📦 Package ${idx + 1}: Quantity must be at least 1`);
+  //       setCurrentStep(2);
+  //       packageError = true;
+  //       break;
+  //     }
+  //     if (!pkg.weight || pkg.weight <= 0) {
+  //       toast.error(`⚖️ Package ${idx + 1}: Weight is required`);
+  //       setCurrentStep(2);
+  //       packageError = true;
+  //       break;
+  //     }
+  //   }
+  //   if (packageError) return;
+    
+  //   if (!formData.sender.name) {
+  //     toast.error('👤 Sender name is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.sender.email) {
+  //     toast.error('📧 Sender email is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.sender.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+  //     toast.error('📧 Please enter a valid sender email address');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.sender.phone) {
+  //     toast.error('📞 Sender phone number is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.sender.address.city) {
+  //     toast.error('🏙️ Sender city is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.sender.address.state) {
+  //     toast.error('🗺️ Sender state is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.sender.address.country) {
+  //     toast.error('🌍 Sender country is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+    
+  //   if (!formData.receiver.name) {
+  //     toast.error('👤 Receiver name is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.receiver.email) {
+  //     toast.error('📧 Receiver email is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.receiver.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+  //     toast.error('📧 Please enter a valid receiver email address');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.receiver.phone) {
+  //     toast.error('📞 Receiver phone number is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.receiver.address.addressLine1) {
+  //     toast.error('📍 Receiver address is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.receiver.address.city) {
+  //     toast.error('🏙️ Receiver city is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.receiver.address.country) {
+  //     toast.error('🌍 Receiver country is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+  //   if (!formData.receiver.address.state) {
+  //     toast.error('🗺️ Receiver state is required');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+    
+  //   if (pickupRequired && !formData.sender.pickupDate) {
+  //     toast.error('🚚 Pickup date is required (Pickup Required is checked)');
+  //     setCurrentStep(3);
+  //     return;
+  //   }
+    
+  //   // ========== PREPARE AND SEND DATA ==========
+  //   const loadingToast = toast.loading('Creating booking... Please wait');
+    
+  //   setIsSubmitting(true);
+  //   setServerErrors([]);
+
+  //   try {
+  //     const bookingData = {
+  //       customer: formData.customer,
+  //       createdBy: adminUser?._id,
+  //       pickupRequired,
+
+  //       shipmentClassification: {
+  //         mainType: formData.shipmentClassification.mainType,
+  //         subType: formData.shipmentClassification.subType
+  //       },
+        
+  //       serviceType: formData.serviceType,
+        
+  //       shipmentDetails: {
+  //         origin: formData.shipmentDetails.origin,
+  //         destination: formData.shipmentDetails.destination,
+  //         shippingMode: formData.shipmentDetails.shippingMode,
+  //         vesselName: formData.shipmentDetails.vesselName,
+  //         voyageNumber: formData.shipmentDetails.voyageNumber,
+  //         packageDetails: formData.shipmentDetails.packageDetails.map(pkg => ({
+  //           description: pkg.description,
+  //           packagingType: pkg.packagingType,
+  //           quantity: Number(pkg.quantity),
+  //           weight: Number(pkg.weight),
+  //           volume: Number(pkg.volume),
+  //           dimensions: {
+  //             length: Number(pkg.dimensions.length) || 0,
+  //             width: Number(pkg.dimensions.width) || 0,
+  //             height: Number(pkg.dimensions.height) || 0,
+  //             unit: 'cm'
+  //           },
+  //           productCategory: pkg.productCategory || 'Others',
+  //           hsCode: pkg.hsCode || '',
+  //           value: {
+  //             amount: Number(pkg.value.amount) || 0,
+  //             currency: formData.payment.currency || 'USD'
+  //           },
+  //           hazardous: pkg.hazardous || false
+  //         })),
+  //         specialInstructions: formData.shipmentDetails.specialInstructions || '',
+  //         referenceNumber: formData.customerReference || ''
+  //       },
+        
+  //       dates: {
+  //           requested: formData.dates.requested,
+  //         estimatedDeparture: formData.dates.estimatedDeparture,
+  //         estimatedArrival: formData.dates.estimatedArrival
+  //       },
+        
+  //       payment: {
+  //         mode: formData.payment.mode,
+  //         currency: formData.payment.currency || 'USD'
+  //       },
+        
+  //       sender: {
+  //         name: formData.sender.name,
+  //         companyName: formData.sender.companyName || '',
+  //         email: formData.sender.email,
+  //         phone: formData.sender.phone,
+  //         address: {
+  //           addressLine1: formData.sender.address.addressLine1 || '',
+  //           addressLine2: formData.sender.address.addressLine2 || '',
+  //           city: formData.sender.address.city || '',
+  //           state: formData.sender.address.state || '',
+  //           country: formData.sender.address.country || '',
+  //           postalCode: formData.sender.address.postalCode || ''
+  //         },
+  //         pickupDate: pickupRequired ? formData.sender.pickupDate : null,
+  //         pickupInstructions: pickupRequired ? formData.sender.pickupInstructions || '' : ''
+  //       },
+        
+  //       receiver: {
+  //         name: formData.receiver.name,
+  //         companyName: formData.receiver.companyName || '',
+  //         email: formData.receiver.email,
+  //         phone: formData.receiver.phone,
+  //         address: {
+  //           addressLine1: formData.receiver.address.addressLine1,
+  //           addressLine2: formData.receiver.address.addressLine2 || '',
+  //           city: formData.receiver.address.city,
+  //           state: formData.receiver.address.state,
+  //           country: formData.receiver.address.country,
+  //           postalCode: formData.receiver.address.postalCode || ''
+  //         },
+  //         deliveryInstructions: formData.receiver.deliveryInstructions || '',
+  //         isResidential: formData.receiver.isResidential || false
+  //       },
+        
+  //       courier: {
+  //         company: 'Samudera Traffic Co., Ltd. Group',
+  //         serviceType: formData.serviceType
+  //       },
+        
+  //       status: 'booking_requested',
+  //       pricingStatus: 'pending',
+        
+  //       timeline: [{
+  //         status: 'booking_requested',
+  //         description: 'Booking',
+  //         updatedBy: adminUser?._id,
+  //         timestamp: new Date()
+  //       }]
+  //     };
+
+  //     console.log('📤 Sending booking data:', JSON.stringify(bookingData, null, 2));
+
+  //     const response = await createBooking(bookingData);
+      
+  //     toast.dismiss(loadingToast);
+      
+  //     if (response.success) {
+  //       toast.success('🎉 Booking created successfully! Redirecting...');
+  //       setShowSuccess(true);
+  //       setTimeout(() => {
+  //         router.push('/Bookings/all_bookings');
+  //       }, 2000);
+  //     } else {
+  //       const errorMsg = response.message || 'Failed to create booking';
+  //       toast.error(`❌ ${errorMsg}`);
+  //       setServerErrors([{ msg: errorMsg }]);
+  //     }
+  //   } catch (error) {
+  //     toast.dismiss(loadingToast);
+      
+  //     console.error('❌ ERROR DETAILS:', error);
+      
+  //     let errorMessage = 'Failed to create booking';
+      
+  //     if (error.response?.data) {
+  //       if (typeof error.response.data === 'string') {
+  //         errorMessage = error.response.data;
+  //       } else if (error.response.data.message) {
+  //         errorMessage = error.response.data.message;
+  //       } else if (error.response.data.error) {
+  //         errorMessage = error.response.data.error;
+  //       } else {
+  //         errorMessage = JSON.stringify(error.response.data);
+  //       }
+  //     } else if (error.message) {
+  //       errorMessage = error.message;
+  //     }
+      
+  //     if (errorMessage.toLowerCase().includes('customer')) {
+  //       toast.error('👤 Customer information is invalid. Please reselect customer.');
+  //     } else if (errorMessage.toLowerCase().includes('package')) {
+  //       toast.error('📦 Package details are incomplete. Please check all package fields.');
+  //     } else if (errorMessage.toLowerCase().includes('date')) {
+  //       toast.error('📅 Date information is invalid. Please check departure and arrival dates.');
+  //     } else if (errorMessage.toLowerCase().includes('address')) {
+  //       toast.error('📍 Address information is incomplete. Please check receiver address.');
+  //     } else if (errorMessage.toLowerCase().includes('email')) {
+  //       toast.error('📧 Email address is invalid. Please check sender and receiver emails.');
+  //     } else if (errorMessage.toLowerCase().includes('state') || errorMessage.toLowerCase().includes('city')) {
+  //       toast.error('🗺️ Location information is incomplete. Please select state and city.');
+  //     } else {
+  //       toast.error(`❌ ${errorMessage}`);
+  //     }
+      
+  //     setServerErrors([{ msg: errorMessage }]);
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
+
+  // ==================== SUBMIT HANDLER ====================
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (currentStep !== 4) {
+    toast.info('Please complete all steps first');
+    return;
+  }
+
+  if (!isReviewConfirmed) {
+    toast.warning('⚠️ Please review all details and click "Confirm Details" before creating booking');
+    return;
+  }
+
+  // ========== GUARD: admin user must be loaded ==========
+  if (!adminUser?._id) {
+    toast.error('❌ Admin user not loaded. Please refresh and log in again.');
+    return;
+  }
+
+  // ========== CHECK ALL REQUIRED FIELDS ==========
+
+  if (!selectedCustomer || !formData.customer) {
+    toast.error('❌ Please select a customer first');
+    setCurrentStep(1);
+    return;
+  }
+
+  if (!formData.shipmentClassification.mainType) {
+    toast.error('❌ Please select shipment type');
+    setCurrentStep(1);
+    return;
+  }
+  if (!formData.shipmentClassification.subType) {
+    toast.error('❌ Please select shipment sub-type');
+    setCurrentStep(1);
+    return;
+  }
+
+  if (!formData.payment.mode) {
+    toast.error('❌ Please select payment mode');
+    setCurrentStep(1);
+    return;
+  }
+  if (!formData.dates.requested) {
+    toast.error('📅 Please select a booking date');
+    setCurrentStep(1);
+    return;
+  }
+  if (!formData.dates.estimatedDeparture) {
+    toast.error('📅 Please select departure date');
+    setCurrentStep(1);
+    return;
+  }
+  if (!formData.dates.estimatedArrival) {
+    toast.error('📅 Please select arrival date');
+    setCurrentStep(1);
+    return;
+  }
+
+  if (formData.shipmentDetails.packageDetails.length === 0) {
+    toast.error('📦 Please add at least one package');
+    setCurrentStep(2);
+    return;
+  }
+
+  let packageError = false;
+  for (let idx = 0; idx < formData.shipmentDetails.packageDetails.length; idx++) {
+    const pkg = formData.shipmentDetails.packageDetails[idx];
+    if (!pkg.description) {
+      toast.error(`📦 Package ${idx + 1}: Description is required`);
       setCurrentStep(2);
-      return;
+      packageError = true;
+      break;
     }
-    
-    let packageError = false;
-    for (let idx = 0; idx < formData.shipmentDetails.packageDetails.length; idx++) {
-      const pkg = formData.shipmentDetails.packageDetails[idx];
-      if (!pkg.description) {
-        toast.error(`📦 Package ${idx + 1}: Description is required`);
-        setCurrentStep(2);
-        packageError = true;
-        break;
-      }
-      if (!pkg.quantity || pkg.quantity < 1) {
-        toast.error(`📦 Package ${idx + 1}: Quantity must be at least 1`);
-        setCurrentStep(2);
-        packageError = true;
-        break;
-      }
-      if (!pkg.weight || pkg.weight <= 0) {
-        toast.error(`⚖️ Package ${idx + 1}: Weight is required`);
-        setCurrentStep(2);
-        packageError = true;
-        break;
-      }
+    if (!pkg.quantity || pkg.quantity < 1) {
+      toast.error(`📦 Package ${idx + 1}: Quantity must be at least 1`);
+      setCurrentStep(2);
+      packageError = true;
+      break;
     }
-    if (packageError) return;
-    
-    if (!formData.sender.name) {
-      toast.error('👤 Sender name is required');
-      setCurrentStep(3);
-      return;
+    if (!pkg.weight || pkg.weight <= 0) {
+      toast.error(`⚖️ Package ${idx + 1}: Weight is required`);
+      setCurrentStep(2);
+      packageError = true;
+      break;
     }
-    if (!formData.sender.email) {
-      toast.error('📧 Sender email is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      toast.error('📧 Please enter a valid sender email address');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.phone) {
-      toast.error('📞 Sender phone number is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.address.city) {
-      toast.error('🏙️ Sender city is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.address.state) {
-      toast.error('🗺️ Sender state is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.address.country) {
-      toast.error('🌍 Sender country is required');
-      setCurrentStep(3);
-      return;
-    }
-    
-    if (!formData.receiver.name) {
-      toast.error('👤 Receiver name is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.receiver.email) {
-      toast.error('📧 Receiver email is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.receiver.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      toast.error('📧 Please enter a valid receiver email address');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.receiver.phone) {
-      toast.error('📞 Receiver phone number is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.receiver.address.addressLine1) {
-      toast.error('📍 Receiver address is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.receiver.address.city) {
-      toast.error('🏙️ Receiver city is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.receiver.address.country) {
-      toast.error('🌍 Receiver country is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.receiver.address.state) {
-      toast.error('🗺️ Receiver state is required');
-      setCurrentStep(3);
-      return;
-    }
-    
-    if (pickupRequired && !formData.sender.pickupDate) {
-      toast.error('🚚 Pickup date is required (Pickup Required is checked)');
-      setCurrentStep(3);
-      return;
-    }
-    
-    // ========== PREPARE AND SEND DATA ==========
-    const loadingToast = toast.loading('Creating booking... Please wait');
-    
-    setIsSubmitting(true);
-    setServerErrors([]);
+  }
+  if (packageError) return;
 
-    try {
-      const bookingData = {
-        customer: formData.customer,
-        createdBy: adminUser?._id,
-        pickupRequired,
+  if (!formData.sender.name) {
+    toast.error('👤 Sender name is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.sender.email) {
+    toast.error('📧 Sender email is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.sender.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+    toast.error('📧 Please enter a valid sender email address');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.sender.phone) {
+    toast.error('📞 Sender phone number is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.sender.address.city) {
+    toast.error('🏙️ Sender city is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.sender.address.state) {
+    toast.error('🗺️ Sender state is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.sender.address.country) {
+    toast.error('🌍 Sender country is required');
+    setCurrentStep(3);
+    return;
+  }
 
-        shipmentClassification: {
-          mainType: formData.shipmentClassification.mainType,
-          subType: formData.shipmentClassification.subType
-        },
-        
-        serviceType: formData.serviceType,
-        
-        shipmentDetails: {
-          origin: formData.shipmentDetails.origin,
-          destination: formData.shipmentDetails.destination,
-          shippingMode: formData.shipmentDetails.shippingMode,
-          vesselName: formData.shipmentDetails.vesselName,
-          voyageNumber: formData.shipmentDetails.voyageNumber,
-          packageDetails: formData.shipmentDetails.packageDetails.map(pkg => ({
-            description: pkg.description,
-            packagingType: pkg.packagingType,
-            quantity: Number(pkg.quantity),
-            weight: Number(pkg.weight),
-            volume: Number(pkg.volume),
-            dimensions: {
-              length: Number(pkg.dimensions.length) || 0,
-              width: Number(pkg.dimensions.width) || 0,
-              height: Number(pkg.dimensions.height) || 0,
-              unit: 'cm'
-            },
-            productCategory: pkg.productCategory || '',
-            hsCode: pkg.hsCode || '',
-            value: {
-              amount: Number(pkg.value.amount) || 0,
-              currency: formData.payment.currency || 'USD'
-            },
-            hazardous: pkg.hazardous || false
-          })),
-          specialInstructions: formData.shipmentDetails.specialInstructions || '',
-          referenceNumber: formData.customerReference || ''
-        },
-        
-        dates: {
-            requested: formData.dates.requested,
-          estimatedDeparture: formData.dates.estimatedDeparture,
-          estimatedArrival: formData.dates.estimatedArrival
-        },
-        
-        payment: {
-          mode: formData.payment.mode,
-          currency: formData.payment.currency || 'USD'
-        },
-        
-        sender: {
-          name: formData.sender.name,
-          companyName: formData.sender.companyName || '',
-          email: formData.sender.email,
-          phone: formData.sender.phone,
-          address: {
-            addressLine1: formData.sender.address.addressLine1 || '',
-            addressLine2: formData.sender.address.addressLine2 || '',
-            city: formData.sender.address.city || '',
-            state: formData.sender.address.state || '',
-            country: formData.sender.address.country || '',
-            postalCode: formData.sender.address.postalCode || ''
+  if (!formData.receiver.name) {
+    toast.error('👤 Receiver name is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.receiver.email) {
+    toast.error('📧 Receiver email is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.receiver.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+    toast.error('📧 Please enter a valid receiver email address');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.receiver.phone) {
+    toast.error('📞 Receiver phone number is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.receiver.address.addressLine1) {
+    toast.error('📍 Receiver address is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.receiver.address.city) {
+    toast.error('🏙️ Receiver city is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.receiver.address.country) {
+    toast.error('🌍 Receiver country is required');
+    setCurrentStep(3);
+    return;
+  }
+  if (!formData.receiver.address.state) {
+    toast.error('🗺️ Receiver state is required');
+    setCurrentStep(3);
+    return;
+  }
+
+  if (pickupRequired && !formData.sender.pickupDate) {
+    toast.error('🚚 Pickup date is required (Pickup Required is checked)');
+    setCurrentStep(3);
+    return;
+  }
+
+  // ========== PREPARE AND SEND DATA ==========
+  const loadingToast = toast.loading('Creating booking... Please wait');
+
+  setIsSubmitting(true);
+  setServerErrors([]);
+
+  // Sanitizers — prevent enum/cast errors from whitespace, NaN, or empty strings
+  const safeStr = (v) => (typeof v === 'string' ? v.trim() : '');
+  const safeNum = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const safeEnum = (v, allowed, fallback) => (allowed.includes(v) ? v : fallback);
+
+  try {
+    const bookingData = {
+      customer: String(selectedCustomer._id),
+      createdBy: String(adminUser._id),
+      pickupRequired: Boolean(pickupRequired),
+
+      shipmentClassification: {
+        mainType: safeStr(formData.shipmentClassification.mainType),
+        subType:  safeStr(formData.shipmentClassification.subType)
+      },
+
+      serviceType: safeEnum(
+        formData.serviceType,
+        ['standard', 'express', 'overnight', 'economy'],
+        'standard'
+      ),
+
+      shipmentDetails: {
+        origin: safeEnum(safeStr(formData.shipmentDetails.origin), ['China', 'Thailand'], 'China'),
+        destination: safeEnum(safeStr(formData.shipmentDetails.destination), ['USA', 'UK', 'Canada'], 'USA'),
+        shippingMode: safeEnum(formData.shipmentDetails.shippingMode, ['DDP', 'DDU', 'FOB', 'CIF'], 'DDU'),
+        vesselName: safeStr(formData.shipmentDetails.vesselName),
+        voyageNumber: safeStr(formData.shipmentDetails.voyageNumber),
+        packageDetails: formData.shipmentDetails.packageDetails.map((pkg) => ({
+          description: safeStr(pkg.description),
+          packagingType: pkg.packagingType || 'carton',
+          quantity: safeNum(pkg.quantity),
+          weight: safeNum(pkg.weight),
+          volume: safeNum(pkg.volume),
+          dimensions: {
+            length: safeNum(pkg.dimensions?.length),
+            width:  safeNum(pkg.dimensions?.width),
+            height: safeNum(pkg.dimensions?.height),
+            unit: 'cm'
           },
-          pickupDate: pickupRequired ? formData.sender.pickupDate : null,
-          pickupInstructions: pickupRequired ? formData.sender.pickupInstructions || '' : ''
-        },
-        
-        receiver: {
-          name: formData.receiver.name,
-          companyName: formData.receiver.companyName || '',
-          email: formData.receiver.email,
-          phone: formData.receiver.phone,
-          address: {
-            addressLine1: formData.receiver.address.addressLine1,
-            addressLine2: formData.receiver.address.addressLine2 || '',
-            city: formData.receiver.address.city,
-            state: formData.receiver.address.state,
-            country: formData.receiver.address.country,
-            postalCode: formData.receiver.address.postalCode || ''
+          productCategory: pkg.productCategory || 'Others',
+          hsCode: safeStr(pkg.hsCode),
+          value: {
+            amount: safeNum(pkg.value?.amount),
+            currency: safeEnum(formData.payment.currency, ['USD', 'GBP', 'CAD'], 'USD')
           },
-          deliveryInstructions: formData.receiver.deliveryInstructions || '',
-          isResidential: formData.receiver.isResidential || false
+          hazardous: Boolean(pkg.hazardous),
+          temperatureControlled: {
+            required: Boolean(pkg.temperatureControlled?.required),
+            minTemp: pkg.temperatureControlled?.minTemp ?? null,
+            maxTemp: pkg.temperatureControlled?.maxTemp ?? null
+          }
+        })),
+        specialInstructions: safeStr(formData.shipmentDetails.specialInstructions),
+        referenceNumber: safeStr(formData.customerReference)
+      },
+
+      dates: {
+        requested: formData.dates.requested || new Date().toISOString().split('T')[0],
+        ...(formData.dates.estimatedDeparture && { estimatedDeparture: formData.dates.estimatedDeparture }),
+        ...(formData.dates.estimatedArrival   && { estimatedArrival:   formData.dates.estimatedArrival })
+      },
+
+      payment: {
+        mode: safeEnum(
+          formData.payment.mode,
+          ['bank_transfer', 'credit_card', 'cash', 'wire_transfer'],
+          'bank_transfer'
+        ),
+        currency: safeEnum(formData.payment.currency, ['USD', 'GBP', 'CAD'], 'USD')
+      },
+
+      sender: {
+        name: safeStr(formData.sender.name),
+        companyName: safeStr(formData.sender.companyName),
+        email: safeStr(formData.sender.email),
+        phone: safeStr(formData.sender.phone),
+        address: {
+          addressLine1: safeStr(formData.sender.address.addressLine1),
+          addressLine2: safeStr(formData.sender.address.addressLine2),
+          city: safeStr(formData.sender.address.city),
+          state: safeStr(formData.sender.address.state),
+          country: safeStr(formData.sender.address.country),
+          postalCode: safeStr(formData.sender.address.postalCode)
         },
-        
-        courier: {
-          company: 'Samudera Traffic Co., Ltd. Group',
-          serviceType: formData.serviceType
+        ...(pickupRequired && formData.sender.pickupDate && { pickupDate: formData.sender.pickupDate }),
+        pickupInstructions: pickupRequired ? safeStr(formData.sender.pickupInstructions) : ''
+      },
+
+      receiver: {
+        name: safeStr(formData.receiver.name),
+        companyName: safeStr(formData.receiver.companyName),
+        email: safeStr(formData.receiver.email),
+        phone: safeStr(formData.receiver.phone),
+        address: {
+          addressLine1: safeStr(formData.receiver.address.addressLine1),
+          addressLine2: safeStr(formData.receiver.address.addressLine2),
+          city: safeStr(formData.receiver.address.city),
+          state: safeStr(formData.receiver.address.state),
+          country: safeStr(formData.receiver.address.country),
+          postalCode: safeStr(formData.receiver.address.postalCode)
         },
-        
+        deliveryInstructions: safeStr(formData.receiver.deliveryInstructions),
+        isResidential: Boolean(formData.receiver.isResidential)
+      },
+
+      courier: {
+        company: 'Samudera Traffic Co., Ltd. Group',
+        serviceType: safeEnum(
+          formData.serviceType,
+          ['standard', 'express', 'overnight', 'economy'],
+          'standard'
+        )
+      },
+
+      status: 'booking_requested',
+      pricingStatus: 'pending',
+
+      timeline: [{
         status: 'booking_requested',
-        pricingStatus: 'pending',
-        
-        timeline: [{
-          status: 'booking_requested',
-          description: 'Booking',
-          updatedBy: adminUser?._id,
-          timestamp: new Date()
-        }]
-      };
+        description: 'Booking',
+        updatedBy: String(adminUser._id),
+        timestamp: new Date()
+      }]
+    };
 
-      console.log('📤 Sending booking data:', JSON.stringify(bookingData, null, 2));
+    console.log('📤 Sending booking data:', JSON.stringify(bookingData, null, 2));
 
-      const response = await createBooking(bookingData);
-      
-      toast.dismiss(loadingToast);
-      
-      if (response.success) {
-        toast.success('🎉 Booking created successfully! Redirecting...');
-        setShowSuccess(true);
-        setTimeout(() => {
-          router.push('/Bookings/all_bookings');
-        }, 2000);
-      } else {
-        const errorMsg = response.message || 'Failed to create booking';
-        toast.error(`❌ ${errorMsg}`);
-        setServerErrors([{ msg: errorMsg }]);
-      }
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      
-      console.error('❌ ERROR DETAILS:', error);
-      
-      let errorMessage = 'Failed to create booking';
-      
-      if (error.response?.data) {
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else {
-          errorMessage = JSON.stringify(error.response.data);
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      if (errorMessage.toLowerCase().includes('customer')) {
-        toast.error('👤 Customer information is invalid. Please reselect customer.');
-      } else if (errorMessage.toLowerCase().includes('package')) {
-        toast.error('📦 Package details are incomplete. Please check all package fields.');
-      } else if (errorMessage.toLowerCase().includes('date')) {
-        toast.error('📅 Date information is invalid. Please check departure and arrival dates.');
-      } else if (errorMessage.toLowerCase().includes('address')) {
-        toast.error('📍 Address information is incomplete. Please check receiver address.');
-      } else if (errorMessage.toLowerCase().includes('email')) {
-        toast.error('📧 Email address is invalid. Please check sender and receiver emails.');
-      } else if (errorMessage.toLowerCase().includes('state') || errorMessage.toLowerCase().includes('city')) {
-        toast.error('🗺️ Location information is incomplete. Please select state and city.');
-      } else {
-        toast.error(`❌ ${errorMessage}`);
-      }
-      
-      setServerErrors([{ msg: errorMessage }]);
-    } finally {
-      setIsSubmitting(false);
+    const response = await createBooking(bookingData);
+
+    toast.dismiss(loadingToast);
+
+    if (response.success) {
+      toast.success('🎉 Booking created successfully! Redirecting...');
+      setShowSuccess(true);
+      setTimeout(() => {
+        router.push('/Bookings/all_bookings');
+      }, 2000);
+    } else {
+      const errorMsg = response.message || 'Failed to create booking';
+      toast.error(`❌ ${errorMsg}`);
+      setServerErrors([{ msg: errorMsg }]);
     }
-  };
+  } catch (error) {
+    toast.dismiss(loadingToast);
+
+    console.error('❌ ERROR DETAILS:', error);
+
+    let errorMessage = 'Failed to create booking';
+
+    if (error.response?.data) {
+      if (typeof error.response.data === 'string') {
+        errorMessage = error.response.data;
+      } else if (error.response.data.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response.data.error) {
+        errorMessage = error.response.data.error;
+      } else if (Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.map((e) => e.msg || e.message).join(', ');
+      } else {
+        errorMessage = JSON.stringify(error.response.data);
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    const lower = errorMessage.toLowerCase();
+    if (lower.includes('customer')) {
+      toast.error('👤 Customer information is invalid. Please reselect customer.');
+    } else if (lower.includes('package')) {
+      toast.error('📦 Package details are incomplete. Please check all package fields.');
+    } else if (lower.includes('date')) {
+      toast.error('📅 Date information is invalid. Please check departure and arrival dates.');
+    } else if (lower.includes('address')) {
+      toast.error('📍 Address information is incomplete. Please check receiver address.');
+    } else if (lower.includes('email')) {
+      toast.error('📧 Email address is invalid. Please check sender and receiver emails.');
+    } else if (lower.includes('state') || lower.includes('city')) {
+      toast.error('🗺️ Location information is incomplete. Please select state and city.');
+    } else {
+      toast.error(`❌ ${errorMessage}`);
+    }
+
+    setServerErrors([{ msg: errorMessage }]);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // ==================== RENDER ====================
   

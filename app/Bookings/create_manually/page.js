@@ -64,8 +64,8 @@ const PAYMENT_MODES = [
 ];
 
 const ORIGINS = [
-  { value: 'China Warehouse', label: 'China - Main Warehouse' },
-  { value: 'Thailand Warehouse', label: 'Thailand - Regional Hub' }
+  { value: 'China ', label: 'China' },
+  { value: 'Thailand ', label: 'Thailand' }
 ];
 
 const DESTINATIONS = [
@@ -106,7 +106,6 @@ const BOOKING_STATUSES = [
 ];
 
 const SHIPMENT_STATUSES = [
-  { value: 'booking_requested', label: 'Booking', color: 'gray', icon: Clock },
   { value: 'pending', label: 'Pending', color: 'gray', icon: Clock },
   { value: 'picked_up_from_warehouse', label: 'Picked Up from Warehouse', color: 'blue', icon: Truck },
   { value: 'loaded_in_container', label: 'Loaded into Container', color: 'indigo', icon: Box },
@@ -386,7 +385,7 @@ export default function CreateBooking() {
     shipmentClassification: { mainType: '', subType: '' },
     serviceType: 'standard',
     shipmentDetails: {
-      origin: 'China Warehouse',
+      origin: 'China',
       destination: 'USA',
       shippingMode: 'DDU',
       packageDetails: [{
