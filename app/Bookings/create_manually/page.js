@@ -64,8 +64,8 @@ const PAYMENT_MODES = [
 ];
 
 const ORIGINS = [
-  { value: 'China Warehouse', label: 'China - Main Warehouse' },
-  { value: 'Thailand Warehouse', label: 'Thailand - Regional Hub' }
+  { value: 'China ', label: 'China' },
+  { value: 'Thailand ', label: 'Thailand' }
 ];
 
 const DESTINATIONS = [
@@ -106,7 +106,6 @@ const BOOKING_STATUSES = [
 ];
 
 const SHIPMENT_STATUSES = [
-  { value: 'booking_requested', label: 'Booking', color: 'gray', icon: Clock },
   { value: 'pending', label: 'Pending', color: 'gray', icon: Clock },
   { value: 'picked_up_from_warehouse', label: 'Picked Up from Warehouse', color: 'blue', icon: Truck },
   { value: 'loaded_in_container', label: 'Loaded into Container', color: 'indigo', icon: Box },
@@ -386,7 +385,7 @@ export default function CreateBooking() {
     shipmentClassification: { mainType: '', subType: '' },
     serviceType: 'standard',
     shipmentDetails: {
-      origin: 'China Warehouse',
+      origin: 'China',
       destination: 'USA',
       shippingMode: 'DDU',
       packageDetails: [{
@@ -1025,6 +1024,7 @@ if (!finalTrackingNumber) {
     let timelineEntries = trackingTimeline.map(entry => ({
       status: entry.status,
       description: entry.description || '',
+        location: entry.location || '', 
       updatedBy: adminUser?._id,
       timestamp: entry.timestamp || new Date(),
       metadata: entry.metadata || {}
@@ -1388,6 +1388,7 @@ if (!finalTrackingNumber) {
                         value={item.weight}
                         onChange={(e) => handlePackageChange(index, 'weight', parseFloat(e.target.value) || 0)}
                         onWheel={(e) => { e.preventDefault(); e.currentTarget.blur(); }}
+                        
                         min="0.1"
                         step="0.1"
                         required
@@ -1667,6 +1668,16 @@ if (!finalTrackingNumber) {
                           required
                         />
                       </div>
+                      <div>
+  <Input
+    label="Location"
+    type="text"
+    value={newTrackingStep.location || ''}
+    onChange={(e) => setNewTrackingStep(prev => ({ ...prev, location: e.target.value }))}
+    placeholder="e.g., Shanghai Port, China"
+    icon={MapPin}
+  />
+</div>
                       <div className="col-span-2">
                         <TextArea
                           label="Description (Optional)"
