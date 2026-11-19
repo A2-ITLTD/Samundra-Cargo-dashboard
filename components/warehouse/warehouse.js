@@ -16,9 +16,11 @@ import {
   formatLocation,
   getConditionDisplayText,
   getConditionColor ,
+  getInventoryStatusDisplayText,
   deleteWarehouseReceipt
 } from '@/services/warehouse';
-import { getConsolidationQueue, createConsolidation, addToQueue } from '@/services/consolidation';
+import { getConsolidationQueue, createConsolidation, addToQueue, getMainTypeName, getSubTypeName } from '@/services/consolidation';
+import ConsolidationFields, { createEmptyConsolidationForm, buildConsolidationPayload } from '@/components/warehouse/ConsolidationFields';
 import { formatDate } from '@/services/booking';
 import { 
   Loader2, Package, Search, Calendar, MapPin, User, 
@@ -315,17 +317,30 @@ const FilterBar = ({ filters, setFilters, total, placeholder = "Search...", tota
 };
 
 const PendingConsolidationModal = ({ isOpen, group, onClose, onSubmit, onReinspect }) => {
-  const [containerType, setContainerType] = useState('');
-  const [condition, setCondition] = useState('Good');
-  const [notes, setNotes] = useState('');
+  const [form, setForm] = useState(createEmptyConsolidationForm());
   const [submitting, setSubmitting] = useState(false);
 
   if (!isOpen || !group) return null;
 
   const shipments = group.shipments || [];
+  const condition = 'Good';
+
+  const totalPackages = shipments.reduce((sum, shipment) => sum + (shipment.totalPackages || shipment.packageCount || 0), 0);
+  const totalWeight = shipments.reduce((sum, shipment) => sum + (shipment.totalWeight || shipment.weight || 0), 0);
+  const totalVolume = shipments.reduce((sum, shipment) => sum + (shipment.totalVolume || shipment.volume || 0), 0);
 
   const handleSubmit = async () => {
-    if (!containerType) {
+    const payload = buildConsolidationPayload(form);
+
+    if (!payload.containerNumber) {
+      toast.warning('Please enter at least one container number');
+      return;
+    }
+    if (!payload.sealNumber) {
+      toast.warning('Please enter at least one seal number');
+      return;
+    }
+    if (!payload.containerType) {
       toast.warning('Please select a container type');
       return;
     }
@@ -340,14 +355,13 @@ const PendingConsolidationModal = ({ isOpen, group, onClose, onSubmit, onReinspe
       const result = await createConsolidation({
         groupKey: group.groupKey,
         selectedShipmentIds,
-        containerType,
-        condition,
-        notes,
         mainType: group.mainType,
         subType: group.subType,
         originWarehouse: group.origin,
         destinationPort: group.destination,
-        receiptIds
+        receiptIds,
+        ...payload,
+        condition
       });
 
       if (result.success) {
@@ -371,57 +385,45 @@ const PendingConsolidationModal = ({ isOpen, group, onClose, onSubmit, onReinspe
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white">
-        <div className="border-b px-5 py-4">
-          <h3 className="text-lg font-semibold text-gray-900">Consolidate Pending Shipments</h3>
-          <p className="mt-1 text-sm text-gray-500">
+      <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex-shrink-0 p-4 border-b">
+          <h3 className="text-base font-bold text-gray-900">Consolidate Pending Shipments</h3>
+          <p className="mt-1 text-xs text-gray-500">
             {group.displayName || `${group.origin || 'Unknown'} → ${group.destination || 'Unknown'}`}
           </p>
         </div>
 
-        <div className="space-y-4 px-5 py-4">
-          
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Container Type</label>
-            <select
-              value={containerType}
-              onChange={(e) => setContainerType(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
-            >
-              <option value="">Select container</option>
-              <option value="20ft">20ft Standard Container</option>
-              <option value="40ft">40ft Standard Container</option>
-              <option value="40ft HC">40ft High Cube Container</option>
-              <option value="45ft">45ft High Cube Container</option>
-              <option value="LCL">LCL - Less than Container Load</option>
-            </select>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 pr-3">
+          <div className="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded text-xs border">
+            <div>
+              <p className="text-[10px] text-gray-500">Route</p>
+              <p className="font-medium">{group.origin || 'N/A'} → {group.destination || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500">Shipment type</p>
+              <p className="font-medium">{getMainTypeName(group.mainType) || 'N/A'} / {getSubTypeName(group.subType) || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500">Shipments</p>
+              <p className="font-medium">{shipments.length}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-500">Packages / Weight / Volume</p>
+              <p className="font-medium">{totalPackages} / {totalWeight.toFixed(2)} / {totalVolume.toFixed(2)}</p>
+            </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              placeholder="Optional notes"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#E67E22]"
-            />
-          </div>
-
-          
-
-         
+          <ConsolidationFields form={form} setForm={setForm} />
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t px-5 py-4">
-          <button onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+        <div className="flex-shrink-0 p-4 border-t flex justify-end space-x-2 bg-white">
+          <button onClick={onClose} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="rounded-lg bg-[#E67E22] px-4 py-2 text-sm text-white hover:bg-[#d35400] disabled:opacity-60"
+            className="px-3 py-1.5 text-sm bg-[#E67E22] text-white rounded-lg hover:bg-[#d35400] disabled:bg-gray-300"
           >
             {submitting ? 'Creating...' : 'Submit & Open Container Status'}
           </button>
@@ -763,15 +765,20 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
         } else {
           // Try adding inspected-good receipt to pending queue so it moves out of Damage
           try {
-            const queueRes = await addToQueue(result.data?.shipmentId || result.data?._id || receiptId);
-            if (queueRes && queueRes.success) {
-              toast.success(queueRes.message || 'Moved to pending queue');
-            } else if (queueRes && !queueRes.success) {
-              toast.warning(queueRes.message || 'Could not add to pending queue automatically');
+            const shipmentId =
+              result.data?.shipmentId ||
+              receipt?.shipmentId?._id ||
+              receipt?.shipmentId;
+            if (shipmentId) {
+              const queueRes = await addToQueue(shipmentId);
+              if (queueRes && queueRes.success) {
+                toast.success(queueRes.message || 'Moved to pending queue');
+              } else if (queueRes && !queueRes.success) {
+                console.warn('Auto-add to queue skipped:', queueRes.message);
+              }
             }
           } catch (err) {
             console.error('Failed to add to pending queue after inspection:', err);
-            toast.warning('Failed to add to pending queue automatically');
           }
 
           // Route good items to pending tab (or consolidation if coming from consolidation page)
@@ -1919,7 +1926,7 @@ const handleInspectClick = (receipt) => {
                           {group.origin || 'N/A'} → {group.destination || 'N/A'}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {group.mainType || 'Mixed'} / {group.subType || 'General'}
+                          {getMainTypeName(group.mainType) || 'Mixed'} / {getSubTypeName(group.subType) || 'General'}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {shipments.length > 0 ? shipments.map((item, index) => {
@@ -2141,7 +2148,7 @@ const handleInspectClick = (receipt) => {
   } ${
     STATUS_COLORS[selectedReceiptDetails.receipt.status]?.text || 'text-gray-700'
   } text-sm mb-4`}>
-    {STATUS_COLORS[selectedReceiptDetails.receipt.status]?.label || selectedReceiptDetails.receipt.status}
+    {STATUS_COLORS[selectedReceiptDetails.receipt.status]?.label || getInventoryStatusDisplayText(selectedReceiptDetails.receipt.status)}
   </div>
 )}
 
@@ -2388,7 +2395,7 @@ const handleInspectClick = (receipt) => {
                 receiptToDelete.status === 'damaged_report' ? 'bg-red-100 text-red-700' :
                 'bg-green-100 text-green-700'
               }`}>
-                {receiptToDelete.status || 'received'}
+                {getInventoryStatusDisplayText(receiptToDelete.status || 'received')}
               </span>
             </div>
             <div>

@@ -16,6 +16,8 @@ import {
   formatDestination
 } from '@/services/consolidation';
 import { formatDate } from '@/services/booking';
+import { getShipmentStatusDisplayText } from '@/services/shipping';
+import ConsolidationFields, { createEmptyConsolidationForm, buildConsolidationPayload } from '@/components/warehouse/ConsolidationFields';
 import axiosInstance from '@/lib/axiosInstance';
 import { toast } from 'react-toastify';
 import {
@@ -216,7 +218,7 @@ const ShipmentDetailsModal = ({ isOpen, onClose, shipment }) => {
               </div>
               <div>
                 <p className="text-xs text-gray-500">Status</p>
-                <p className="font-medium capitalize">{shipmentData.status}</p>
+                <p className="font-medium">{getShipmentStatusDisplayText(shipmentData.status)}</p>
               </div>
             </div>
           </div>
@@ -599,64 +601,62 @@ const GroupCard = ({ group, onSelectShipments, onRemoveShipment }) => {
 // Create Consolidation Modal - সম্পূর্ণ আপডেটেড ভার্সন
 const CreateConsolidationModal = ({ isOpen, onClose, group, selectedShipments, onCreateSuccess }) => {
   const [loading, setLoading] = useState(false);
-  const [containerType, setContainerType] = useState('');
+  const [form, setForm] = useState(createEmptyConsolidationForm());
 
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
-    if (!containerType) {
-      toast.warning('Please select container type');
+    const payload = buildConsolidationPayload(form);
+
+    if (!payload.containerNumber) {
+      toast.warning('Please enter at least one container number');
       return;
     }
-    
+    if (!payload.sealNumber) {
+      toast.warning('Please enter at least one seal number');
+      return;
+    }
+    if (!payload.containerType) {
+      toast.warning('Please select a container type');
+      return;
+    }
+
     setLoading(true);
     try {
-      // ✅ গুরুত্বপূর্ণ: সিলেক্টেড শিপমেন্টের আইডি এবং রিসিপ্ট আইডি বের করুন
       const selectedIds = Object.keys(selectedShipments).filter(key => selectedShipments[key]);
-      
-      // গ্রুপ থেকে সিলেক্টেড শিপমেন্টের পূর্ণ ডাটা বের করুন
       const shipments = group?.shipments || [];
       const selectedShipmentsData = shipments.filter(s => selectedIds.includes(s._id));
-      
-      // ✅ রিসিপ্ট আইডি গুলো বের করুন
       const receiptIds = selectedShipmentsData
         .map(s => s.receiptId || s.warehouseReceiptId || s.shipmentId?.receiptId)
         .filter(id => id);
-      
-      console.log('📦 Creating consolidation with receipt IDs:', receiptIds);
-      console.log('📦 Selected shipments:', selectedShipmentsData);
-      
+
       const result = await createConsolidation({
         groupKey: group?.groupKey,
         selectedShipmentIds: selectedIds,
-        containerType: containerType,
         mainType: group?.mainType,
         subType: group?.subType,
         originWarehouse: group?.origin,
         destinationPort: group?.destination,
-        receiptIds: receiptIds  // ← রিসিপ্ট আইডি পাঠান
+        receiptIds,
+        ...payload
       });
-      
+
       if (result.success) {
         toast.success(`Consolidation created: ${result.data.consolidationNumber}`);
-        
-        // ✅ রিসিপ্ট গুলো কনসলিডেটেড মার্ক করুন (সরাসরি API কল)
+
         if (receiptIds.length > 0) {
           for (const receiptId of receiptIds) {
             try {
-              // Use the shared axiosInstance so the request carries the cookie
-              // auth token and the configured API base URL.
               await axiosInstance.patch(`/receipts/${receiptId}/consolidate`, {
                 status: 'consolidated'
               });
-              console.log(`✅ Receipt ${receiptId} marked as consolidated`);
             } catch (err) {
               console.error(`Error updating receipt ${receiptId}:`, err);
             }
           }
           toast.success(`${receiptIds.length} receipt(s) marked as consolidated`);
         }
-        
+
         onCreateSuccess();
         onClose();
       } else {
@@ -670,7 +670,6 @@ const CreateConsolidationModal = ({ isOpen, onClose, group, selectedShipments, o
     }
   };
 
-  // Calculate selected stats
   const shipments = group?.shipments || [];
   const selectedIds = Object.keys(selectedShipments).filter(key => selectedShipments[key]);
   const selectedShipmentsData = shipments.filter(s => selectedIds.includes(s._id));
@@ -680,12 +679,13 @@ const CreateConsolidationModal = ({ isOpen, onClose, group, selectedShipments, o
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-md w-full">
-        <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">Create Consolidation</h2>
-          
-          {/* Summary */}
-          <div className="bg-gray-50 p-3 rounded-lg mb-4">
+      <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex-shrink-0 p-4 border-b">
+          <h2 className="text-base font-bold">Create Consolidation</h2>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 pr-3">
+          <div className="bg-gray-50 p-3 rounded-lg">
             <p className="text-sm font-medium mb-2">Selected Shipments: {selectedCount}</p>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
@@ -698,42 +698,28 @@ const CreateConsolidationModal = ({ isOpen, onClose, group, selectedShipments, o
               </div>
             </div>
           </div>
-          
-          <select
-            value={containerType}
-            onChange={(e) => setContainerType(e.target.value)}
-            className="w-full p-2 border rounded-lg mb-4"
-          >
-            <option value="">Select Container Type</option>
-            {CONTAINER_TYPES.map(type => (
-              <option key={type.value} value={type.value}>
-                {type.label} (Max {type.maxVolume} m³)
-              </option>
-            ))}
-          </select>
 
-          <div className="flex justify-end space-x-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={loading || !containerType}
-              className="px-4 py-2 bg-[#E67E22] text-white rounded-lg hover:bg-[#d35400] disabled:bg-gray-300"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 inline mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Create Consolidation'
-              )}
-            </button>
-          </div>
+          <ConsolidationFields form={form} setForm={setForm} />
+        </div>
+
+        <div className="flex-shrink-0 p-4 border-t flex justify-end space-x-2 bg-white">
+          <button onClick={onClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="px-4 py-2 bg-[#E67E22] text-white rounded-lg hover:bg-[#d35400] disabled:bg-gray-300"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 inline mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Consolidation'
+            )}
+          </button>
         </div>
       </div>
     </div>

@@ -1141,46 +1141,46 @@ export default function CreateBooking() {
   //   }
   //   if (packageError) return;
     
-    if (!formData.sender.name) {
-      toast.error('👤 Sender name is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.email) {
-      toast.error('📧 Sender email is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      toast.error('📧 Please enter a valid sender email address');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.phone) {
-      toast.error('📞 Sender phone number is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.address.addressLine1) {
-      toast.error('📍 Sender address is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.address.city) {
-      toast.error('🏙️ Sender city is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.address.state) {
-      toast.error('🗺️ Sender state is required');
-      setCurrentStep(3);
-      return;
-    }
-    if (!formData.sender.address.country) {
-      toast.error('🌍 Sender country is required');
-      setCurrentStep(3);
-      return;
-    }
+    // if (!formData.sender.name) {
+    //   toast.error('👤 Sender name is required');
+    //   setCurrentStep(3);
+    //   return;
+    // }
+    // if (!formData.sender.email) {
+    //   toast.error('📧 Sender email is required');
+    //   setCurrentStep(3);
+    //   return;
+    // }
+    // if (!formData.sender.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+    //   toast.error('📧 Please enter a valid sender email address');
+    //   setCurrentStep(3);
+    //   return;
+    // }
+    // if (!formData.sender.phone) {
+    //   toast.error('📞 Sender phone number is required');
+    //   setCurrentStep(3);
+    //   return;
+    // }
+    // if (!formData.sender.address.addressLine1) {
+    //   toast.error('📍 Sender address is required');
+    //   setCurrentStep(3);
+    //   return;
+    // }
+    // if (!formData.sender.address.city) {
+    //   toast.error('🏙️ Sender city is required');
+    //   setCurrentStep(3);
+    //   return;
+    // }
+    // if (!formData.sender.address.state) {
+    //   toast.error('🗺️ Sender state is required');
+    //   setCurrentStep(3);
+    //   return;
+    // }
+    // if (!formData.sender.address.country) {
+    //   toast.error('🌍 Sender country is required');
+    //   setCurrentStep(3);
+    //   return;
+    // }
     
   //   if (!formData.receiver.name) {
   //     toast.error('👤 Receiver name is required');
@@ -1248,35 +1248,35 @@ export default function CreateBooking() {
         
   //       serviceType: formData.serviceType,
         
-        shipmentDetails: {
-          origin: formData.shipmentDetails.origin,
-          destination: formData.shipmentDetails.destination,
-          shippingMode: formData.shipmentDetails.shippingMode,
-          vesselName: formData.shipmentDetails.vesselName,
-          voyageNumber: formData.shipmentDetails.voyageNumber,
-          packageDetails: formData.shipmentDetails.packageDetails.map(pkg => ({
-            description: pkg.description,
-            packagingType: pkg.packagingType || 'carton',
-            quantity: Number(pkg.quantity),
-            weight: Number(pkg.weight),
-            volume: Number(pkg.volume),
-            dimensions: {
-              length: Number(pkg.dimensions.length) || 0,
-              width: Number(pkg.dimensions.width) || 0,
-              height: Number(pkg.dimensions.height) || 0,
-              unit: 'cm'
-            },
-            productCategory: pkg.productCategory || 'Others',
-            hsCode: pkg.hsCode || '',
-            value: {
-              amount: Number(pkg.value.amount) || 0,
-              currency: formData.payment.currency || 'USD'
-            },
-            hazardous: pkg.hazardous || false
-          })),
-          specialInstructions: formData.shipmentDetails.specialInstructions || '',
-          referenceNumber: formData.customerReference || ''
-        },
+  //       shipmentDetails: {
+  //         origin: formData.shipmentDetails.origin,
+  //         destination: formData.shipmentDetails.destination,
+  //         shippingMode: formData.shipmentDetails.shippingMode,
+  //         vesselName: formData.shipmentDetails.vesselName,
+  //         voyageNumber: formData.shipmentDetails.voyageNumber,
+  //         packageDetails: formData.shipmentDetails.packageDetails.map(pkg => ({
+  //           description: pkg.description,
+  //           packagingType: pkg.packagingType || 'carton',
+  //           quantity: Number(pkg.quantity),
+  //           weight: Number(pkg.weight),
+  //           volume: Number(pkg.volume),
+  //           dimensions: {
+  //             length: Number(pkg.dimensions.length) || 0,
+  //             width: Number(pkg.dimensions.width) || 0,
+  //             height: Number(pkg.dimensions.height) || 0,
+  //             unit: 'cm'
+  //           },
+  //           productCategory: pkg.productCategory || 'Others',
+  //           hsCode: pkg.hsCode || '',
+  //           value: {
+  //             amount: Number(pkg.value.amount) || 0,
+  //             currency: formData.payment.currency || 'USD'
+  //           },
+  //           hazardous: pkg.hazardous || false
+  //         })),
+  //         specialInstructions: formData.shipmentDetails.specialInstructions || '',
+  //         referenceNumber: formData.customerReference || ''
+  //       },
         
   //       dates: {
   //           requested: formData.dates.requested,
@@ -1345,17 +1345,17 @@ export default function CreateBooking() {
       
   //     toast.dismiss(loadingToast);
       
-      if (response.success) {
-        toast.success('🎉 Booking created successfully!');
-        setShowSuccess(true);
-        router.replace('/Bookings/all_bookings');
-      } else {
-        const errorMsg = response.message || 'Failed to create booking';
-        toast.error(`❌ ${errorMsg}`);
-        setServerErrors([{ msg: errorMsg }]);
-      }
-    } catch (error) {
-      toast.dismiss(loadingToast);
+  //     if (response.success) {
+  //       toast.success('🎉 Booking created successfully!');
+  //       setShowSuccess(true);
+  //       router.replace('/Bookings/all_bookings');
+  //     } else {
+  //       const errorMsg = response.message || 'Failed to create booking';
+  //       toast.error(`❌ ${errorMsg}`);
+  //       setServerErrors([{ msg: errorMsg }]);
+  //     }
+  //   } catch (error) {
+  //     toast.dismiss(loadingToast);
       
   //     console.error('❌ ERROR DETAILS:', error);
       
