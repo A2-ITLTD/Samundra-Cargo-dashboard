@@ -1635,7 +1635,7 @@ const handleSubmit = async (e) => {
       },
 
       dates: {
-        requested: formData.dates.requested || new Date().toISOString().split('T')[0],
+        requested: formData.dates.requested || getTodayLocal(),
         ...(formData.dates.estimatedDeparture && { estimatedDeparture: formData.dates.estimatedDeparture }),
         ...(formData.dates.estimatedArrival   && { estimatedArrival:   formData.dates.estimatedArrival })
       },

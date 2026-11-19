@@ -555,9 +555,22 @@ export const formatCurrency = (amount, currency = 'USD') => {
 // Format date
 export const formatDate = (dateString, format = 'medium') => {
   if (!dateString) return 'N/A';
-  
-  const date = new Date(dateString);
-  
+
+  const raw = String(dateString);
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+  const date = isDateOnly ? new Date(`${raw}T00:00:00Z`) : new Date(raw);
+
+  if (Number.isNaN(date.getTime())) return 'N/A';
+
+  if (isDateOnly) {
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: format === 'short' ? 'short' : 'long',
+      day: 'numeric',
+      timeZone: 'UTC'
+    });
+  }
+
   if (format === 'short') {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',

@@ -50,6 +50,11 @@ Font.register({
   family: 'Helvetica',
   src: 'https://fonts.gstatic.com/s/helvetica/v1/Helvetica.ttf'
 });
+const getLocalDateString = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 // Add this helper function for date formatting
 const formatDateSafe = (date, format = 'short') => {
   if (!date) return 'N/A';
@@ -317,7 +322,18 @@ const getStatusInfo = (status, type = 'invoice') => {
 
 const formatDateTime = (date) => {
   if (!date) return 'N/A';
-  return new Date(date).toLocaleString('en-US', {
+  const raw = String(date);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [year, month, day] = raw.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return 'N/A';
+  return parsed.toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -644,7 +660,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, onConfirm }) => {
   const [paymentData, setPaymentData] = useState({
     paymentMethod: 'Bank Transfer',
     paymentReference: '',
-    paymentDate: new Date().toISOString().split('T')[0]
+    paymentDate: getLocalDateString()
   });
 
   useEffect(() => {
@@ -652,7 +668,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, onConfirm }) => {
       setPaymentData({
         paymentMethod: 'Bank Transfer',
         paymentReference: '',
-        paymentDate: new Date().toISOString().split('T')[0]
+        paymentDate: getLocalDateString()
       });
     }
   }, [invoice]);
@@ -701,7 +717,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, onConfirm }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
-              <input type="date" value={paymentData.paymentDate} onChange={(e) => setPaymentData({ ...paymentData, paymentDate: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#E67E22]" />
+              <input type="date" value={paymentData.paymentDate} onChange={(e) => setPaymentData({ ...paymentData, paymentDate: e.target.value })} max={getLocalDateString()} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#E67E22]" />
             </div>
           </div>
           <div className="flex justify-end space-x-2 mt-6">

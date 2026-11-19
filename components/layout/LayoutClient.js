@@ -11,7 +11,9 @@ export default function LayoutClient({ children }) {
 
   useEffect(() => {
     const handleSessionExpired = () => {
-      if (window.location.pathname !== '/') router.replace('/');
+      if (window.location.pathname !== '/') {
+        setTimeout(() => router.replace('/'), 150);
+      }
     };
     window.addEventListener('sessionExpired', handleSessionExpired);
     return () => window.removeEventListener('sessionExpired', handleSessionExpired);

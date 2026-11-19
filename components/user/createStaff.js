@@ -380,7 +380,7 @@ const handleReset = () => {
                   Choose Staff Role
                 </label>
                 <div className="flex gap-4">
-                  {/* <button
+                  <button
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, role: 'operations' }))}
                     className={`flex-1 p-4 rounded-xl border-2 transition-all ${
@@ -395,7 +395,7 @@ const handleReset = () => {
                     <span className={`font-medium ${
                       formData.role === 'operations' ? 'text-red-700' : 'text-gray-600'
                     }`}>Operations</span>
-                  </button> */}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, role: 'warehouse' }))}

@@ -254,6 +254,22 @@ const getTotalWeight = (consolidation) => {
   return consolidation.totalWeight || 0;
 };
 
+const getLocalDateString = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+const toLocalTimestamp = (value) => {
+  if (!value) return new Date().toISOString();
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [year, month, day] = raw.split('-').map(Number);
+    return new Date(year, month - 1, day).toISOString();
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+};
+
 const formatWeight = (weight, compact = false) => {
   const value = Number(weight || 0);
   const unit = compact ? 'kg' : 'kilograms';
@@ -536,6 +552,26 @@ const ShipmentCard = ({ shipment, consolidationId, consolidationStatus, onShipme
   const [currentProgress, setCurrentProgress] = useState(
     getProgressFromStatus(shipment.status)
   );
+
+  const getShipmentMeasurements = () => {
+    const packages = Array.isArray(shipment?.packages) ? shipment.packages : [];
+    const sumFromPackages = (field) =>
+      packages.reduce(
+        (sum, pkg) => sum + (Number(pkg?.[field]) || 0) * (Number(pkg?.quantity) || 0),
+        0,
+      );
+    const weight =
+      sumFromPackages('weight') || Number(shipment?.shipmentDetails?.totalWeight) || 0;
+    const volume =
+      sumFromPackages('volume') || Number(shipment?.shipmentDetails?.totalVolume) || 0;
+
+    return [
+      weight > 0 ? `${weight} kg` : null,
+      volume > 0 ? `${volume} m³` : null,
+    ].filter(Boolean);
+  };
+
+  const measurements = getShipmentMeasurements();
 
   // Update local state when shipment prop changes
   useEffect(() => {
@@ -881,7 +917,7 @@ const handleResume = async () => {
               )}
             </div>
             <div className="text-[10px] text-gray-500 mt-0.5 flex items-center space-x-2">
-              <span>{shipment.weight || 0} kg • {shipment.volume || 0} m³</span>
+              {measurements.length > 0 && <span>{measurements.join(' • ')}</span>}
               {trackingData?.estimatedDelivery && (
                 <span className="text-green-600 flex items-center">
                   <Calendar className="h-2.5 w-2.5 mr-0.5" />
@@ -3259,12 +3295,12 @@ const CompleteConsolidationModal = ({ isOpen, onClose, consolidation, onSuccess 
 const DeliveredCompletionModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState('');
-  const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
+  const [completionDate, setCompletionDate] = useState(getLocalDateString());
 
   useEffect(() => {
     if (isOpen) {
       setNotes('');
-      setCompletionDate(new Date().toISOString().slice(0, 10));
+      setCompletionDate(getLocalDateString());
     }
   }, [isOpen, consolidation]);
 
@@ -3276,7 +3312,7 @@ const DeliveredCompletionModal = ({ isOpen, onClose, consolidation, onSuccess })
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'completed',
         notes: `Completed on ${completionDate}. ${notes}`.trim(),
-        timestamp: completionDate,
+        timestamp: toLocalTimestamp(completionDate),
         metadata: { completionDate, notes }
       });
 
@@ -3359,7 +3395,7 @@ const DeliveredCompletionModal = ({ isOpen, onClose, consolidation, onSuccess })
 const LoadedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    loadedDate: new Date().toISOString().split('T')[0],
+    loadedDate: getLocalDateString(),
     location: '',
     notes: ''
   });
@@ -3380,7 +3416,7 @@ const LoadedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         status: 'loaded',
         notes: `Loaded at ${formData.location} on ${formData.loadedDate}. ${formData.notes}`,
         location: formData.location,
-        timestamp: new Date(formData.loadedDate),
+        timestamp: toLocalTimestamp(formData.loadedDate),
         metadata: {
           loadedDate: formData.loadedDate,
           location: formData.location,
@@ -3488,7 +3524,7 @@ const LoadedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
 const DispatchModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    dispatchDate: new Date().toISOString().split('T')[0],
+    dispatchDate: getLocalDateString(),
     carrierName: '',
     vehicleNumber: '',
     driverName: '',
@@ -3509,8 +3545,8 @@ const DispatchModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         forceUpdate: true,
         notes: `Dispatched on ${formData.dispatchDate} with ${formData.carrierName}. Vehicle: ${formData.vehicleNumber || 'N/A'}, Driver: ${formData.driverName || 'N/A'}. ${formData.notes}`,
         location: formData.portName || consolidation.destinationPort || consolidation.originWarehouse,
-        actualDeparture: new Date(formData.dispatchDate),
-        timestamp: new Date(formData.dispatchDate),
+        actualDeparture: toLocalTimestamp(formData.dispatchDate),
+        timestamp: toLocalTimestamp(formData.dispatchDate),
         metadata: {
           dispatchDate: formData.dispatchDate,
           carrierName: formData.carrierName,
@@ -3524,7 +3560,7 @@ const DispatchModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
 
       if (dispatchResult.success) {
         await updateConsolidation(consolidation._id, {
-          actualDeparture: new Date(formData.dispatchDate)
+          actualDeparture: toLocalTimestamp(formData.dispatchDate)
         });
 
         toast.success('✅ Consolidation dispatched');
@@ -3688,7 +3724,7 @@ const DispatchModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
 const PickedUpModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    pickupDate: new Date().toISOString().split('T')[0],
+    pickupDate: getLocalDateString(),
     location: '',
     notes: ''
   });
@@ -3705,7 +3741,7 @@ const PickedUpModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         status: 'picked_up_from_warehouse',
         notes: `Picked up from warehouse on ${formData.pickupDate}${formData.location ? ` at ${formData.location}` : ''}. ${formData.notes}`,
         location: formData.location || consolidation.originWarehouse,
-        timestamp: new Date(formData.pickupDate),
+        timestamp: toLocalTimestamp(formData.pickupDate),
         metadata: {
           pickupDate: formData.pickupDate,
           location: formData.location,
@@ -3998,7 +4034,7 @@ const ReadyForDispatchModal = ({ isOpen, onClose, consolidation, onSuccess }) =>
 const ContainerSealedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    sealDate: new Date().toISOString().split('T')[0],
+    sealDate: getLocalDateString(),
     sealNumber: '',
     notes: ''
   });
@@ -4008,7 +4044,7 @@ const ContainerSealedModal = ({ isOpen, onClose, consolidation, onSuccess }) => 
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        sealDate: new Date().toISOString().split('T')[0],
+        sealDate: getLocalDateString(),
         sealNumber: existingSeal,
         notes: ''
       });
@@ -4026,7 +4062,7 @@ const ContainerSealedModal = ({ isOpen, onClose, consolidation, onSuccess }) => 
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'container_sealed',
         notes: `Container sealed on ${formData.sealDate}${formData.sealNumber ? ` with seal #${formData.sealNumber}` : ''}. ${formData.notes}`,
-        timestamp: new Date(formData.sealDate),
+        timestamp: toLocalTimestamp(formData.sealDate),
         metadata: {
           sealNumber: formData.sealNumber,
           sealDate: formData.sealDate,
@@ -4134,7 +4170,7 @@ const ContainerSealedModal = ({ isOpen, onClose, consolidation, onSuccess }) => 
 const DepartedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    departureDate: new Date().toISOString().split('T')[0],
+    departureDate: getLocalDateString(),
     portName: '',
     vesselName: '',
     notes: ''
@@ -4145,7 +4181,7 @@ const DepartedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   useEffect(() => {
     if (isOpen && consolidation) {
       setFormData({
-        departureDate: new Date().toISOString().split('T')[0],
+        departureDate: getLocalDateString(),
         portName: '',
         vesselName: existingVessel,
         notes: ''
@@ -4165,7 +4201,7 @@ const DepartedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         status: 'departed_port_of_origin',
         notes: `Departed from ${formData.portName || 'Port of Origin'} on ${formData.departureDate}${formData.vesselName ? ` on vessel ${formData.vesselName}` : ''}. ${formData.notes}`,
         location: formData.portName || consolidation.originPort,
-        timestamp: new Date(formData.departureDate),
+        timestamp: toLocalTimestamp(formData.departureDate),
         metadata: {
           portName: formData.portName,
           departureDate: formData.departureDate,
@@ -4286,7 +4322,7 @@ const DepartedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
 const InTransitModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    transitDate: new Date().toISOString().split('T')[0],
+    transitDate: getLocalDateString(),
     notes: ''
   });
 
@@ -4301,7 +4337,7 @@ const InTransitModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'in_transit',
         notes: `In transit as of ${formData.transitDate}. ${formData.notes}`,
-        timestamp: new Date(formData.transitDate),
+        timestamp: toLocalTimestamp(formData.transitDate),
         metadata: {
           transitDate: formData.transitDate,
           notes: formData.notes
@@ -4393,7 +4429,7 @@ const InTransitModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
 const UnloadedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    unloadDate: new Date().toISOString().split('T')[0],
+    unloadDate: getLocalDateString(),
     portName: '',
     notes: ''
   });
@@ -4410,7 +4446,7 @@ const UnloadedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         status: 'unloaded_from_vessel',
         notes: `Unloaded from vessel on ${formData.unloadDate}${formData.portName ? ` at ${formData.portName}` : ''}. ${formData.notes}`,
         location: formData.portName || consolidation.destinationPort,
-        timestamp: new Date(formData.unloadDate),
+        timestamp: toLocalTimestamp(formData.unloadDate),
         metadata: {
           unloadDate: formData.unloadDate,
           portName: formData.portName,
@@ -4515,7 +4551,7 @@ const UnloadedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
 const ArrivedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    arrivalDate: new Date().toISOString().split('T')[0],
+    arrivalDate: getLocalDateString(),
     portName: '',
     vesselName: '',
     notes: ''
@@ -4541,8 +4577,8 @@ const ArrivedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
         forceUpdate: true,
         notes: `Arrived at ${formData.portName} on ${formData.arrivalDate}. Vessel: ${formData.vesselName}. ${formData.notes}`,
         location: formData.portName,
-        actualArrival: new Date(formData.arrivalDate),
-        timestamp: new Date(formData.arrivalDate),
+        actualArrival: toLocalTimestamp(formData.arrivalDate),
+        timestamp: toLocalTimestamp(formData.arrivalDate),
         metadata: {
           portName: formData.portName,
           arrivalDate: formData.arrivalDate,
@@ -4665,7 +4701,7 @@ const ArrivedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
 const UnderCustomsClearedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    clearanceDate: new Date().toISOString().split('T')[0],
+    clearanceDate: getLocalDateString(),
     customsReference: '',
     notes: ''
   });
@@ -4676,7 +4712,7 @@ const UnderCustomsClearedModal = ({ isOpen, onClose, consolidation, onSuccess })
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'under_customs_clearance',
         notes: `Under Customs Clearance on ${formData.clearanceDate}. Reference: ${formData.customsReference}. ${formData.notes}`,
-        timestamp: new Date(formData.clearanceDate),
+        timestamp: toLocalTimestamp(formData.clearanceDate),
         metadata: {
           clearanceDate: formData.clearanceDate,
           customsReference: formData.customsReference,
@@ -4787,7 +4823,7 @@ const UnderCustomsClearedModal = ({ isOpen, onClose, consolidation, onSuccess })
 const CustomsClearedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    clearanceDate: new Date().toISOString().split('T')[0],
+    clearanceDate: getLocalDateString(),
     customsReference: '',
     notes: ''
   });
@@ -4798,7 +4834,7 @@ const CustomsClearedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'customs_cleared',
         notes: `Customs cleared on ${formData.clearanceDate}. Reference: ${formData.customsReference}. ${formData.notes}`,
-        timestamp: new Date(formData.clearanceDate),
+        timestamp: toLocalTimestamp(formData.clearanceDate),
         metadata: {
           clearanceDate: formData.clearanceDate,
           customsReference: formData.customsReference,
@@ -4910,7 +4946,7 @@ const CustomsClearedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
 const OutForDeliveryModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    deliveryDate: new Date().toISOString().split('T')[0],
+    deliveryDate: getLocalDateString(),
     carrierName: '',
     vehicleNumber: '',
     driverName: '',
@@ -4924,7 +4960,7 @@ const OutForDeliveryModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'out_for_delivery',
         notes: `Out for delivery on ${formData.deliveryDate}. Carrier: ${formData.carrierName}, Vehicle: ${formData.vehicleNumber}, Driver: ${formData.driverName}. ${formData.notes}`,
-        timestamp: new Date(formData.deliveryDate),
+        timestamp: toLocalTimestamp(formData.deliveryDate),
         metadata: {
           deliveryDate: formData.deliveryDate,
           carrierName: formData.carrierName,
@@ -5079,7 +5115,7 @@ const OutForDeliveryModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
 const DeliveredModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    deliveredDate: new Date().toISOString().split('T')[0],
+    deliveredDate: getLocalDateString(),
     receivedBy: '',
     signature: false,
     notes: ''
@@ -5091,7 +5127,7 @@ const DeliveredModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
       const result = await updateConsolidationStatus(consolidation._id, {
         status: 'delivered',
         notes: `Delivered on ${formData.deliveredDate}. Received by: ${formData.receivedBy}. ${formData.notes}`,
-        timestamp: new Date(formData.deliveredDate),
+        timestamp: toLocalTimestamp(formData.deliveredDate),
         metadata: {
           deliveredDate: formData.deliveredDate,
           receivedBy: formData.receivedBy,

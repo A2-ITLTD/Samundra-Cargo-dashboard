@@ -469,9 +469,11 @@ const EditUserPage = () => {
                         <option value="Manufacturer">Manufacturer</option>
                         <option value="Trader">Trader</option>
                         <option value="Wholesaler">Wholesaler</option>
+                        <option value="Distributor">Distributor</option>
                         <option value="Retailer">Retailer</option>
                         <option value="Importer">Importer</option>
                         <option value="Exporter">Exporter</option>
+                        <option value="E-commerce">E-commerce</option>
                         <option value="Other">Other</option>
                       </select>
                     </div>
