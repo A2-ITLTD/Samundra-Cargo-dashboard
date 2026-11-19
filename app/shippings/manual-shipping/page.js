@@ -2284,8 +2284,10 @@ import { Lock, Plus, Shield, Trash2 } from "lucide-react";
 import {
   getAllNewShipments,
   updateShipmentStatus,
-  updateSenderReceiverInfo
+  updateSenderReceiverInfo,
+  deleteNewShipment
 } from '@/services/newShipping';
+import { getCurrentUser } from '@/services/Authentication';
 
 // ✅ NEW: location helpers used by the Receiver address dropdowns
 import { getStates, fetchCitiesByState } from '@/services/location';
@@ -2782,10 +2784,16 @@ const ActionMenu = ({ shipment, onAction }) => {
   const updateMenuPosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    setMenuPosition({
-      top: rect.bottom + 6,
-      left: Math.max(8, rect.right - 192)
-    });
+    const menuHeight = 124;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow >= menuHeight + 12
+      ? rect.bottom + 2
+      : Math.max(8, rect.top - menuHeight - 2);
+    const left = Math.min(
+      Math.max(8, rect.right - 192),
+      Math.max(8, window.innerWidth - 200)
+    );
+    setMenuPosition({ top, left });
   }, []);
 
   useEffect(() => {
@@ -2817,9 +2825,13 @@ const ActionMenu = ({ shipment, onAction }) => {
 
   const normalizedShipmentStatus = normalizeShipmentStatus(shipment?.shipmentStatus || shipment?.status);
 
+  const currentUser = getCurrentUser();
+  const isSuperAdmin = currentUser?.adminLevel === 'super_admin' || currentUser?.role === 'super_admin';
+
   const actions = [
     { label: 'View Details', icon: Eye, action: 'view', color: 'text-blue-600', show: true },
-    { label: 'Update Status', icon: Edit3, action: 'updateStatus', color: 'text-green-600', show: normalizedShipmentStatus !== 'cancelled' && normalizedShipmentStatus !== 'completed' }
+    { label: 'Update Status', icon: Edit3, action: 'updateStatus', color: 'text-green-600', show: normalizedShipmentStatus !== 'cancelled' && normalizedShipmentStatus !== 'completed' },
+    { label: 'Delete Shipment', icon: Trash2, action: 'delete', color: 'text-red-700', show: isSuperAdmin && ['completed', 'delivered', 'cancelled'].includes(normalizedShipmentStatus) }
   ];
 
   return (
@@ -2830,7 +2842,7 @@ const ActionMenu = ({ shipment, onAction }) => {
           if (!showMenu) updateMenuPosition();
           setShowMenu(!showMenu);
         }}
-        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        className={`p-2 rounded-lg transition-colors ${showMenu ? 'bg-gray-200 ring-1 ring-gray-300' : 'hover:bg-gray-100'}`}
       >
         <MoreVertical className="h-4 w-4 text-gray-500" />
       </button>
@@ -4449,6 +4461,43 @@ const ShipmentDetailsModal = ({ isOpen, onClose, shipment, onStatusUpdated }) =>
   );
 };
 
+const DeleteShipmentModal = ({ isOpen, onClose, shipment, onDelete }) => {
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen || !shipment) return null;
+
+  const handleDelete = async () => {
+    setLoading(true);
+    try {
+      await onDelete(shipment._id);
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Delete Shipment" size="md">
+      <div className="space-y-4">
+        <div className="bg-red-50 p-4 rounded-lg flex items-start">
+          <AlertTriangle className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-800">Permanently delete this shipment?</p>
+            <p className="text-xs text-red-700 mt-1">This removes the shipment, its warehouse receipt, inventory, damage records and damage images. Bookings and invoices are kept, with their shipment links cleared. This cannot be undone.</p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-700">{shipment.shipmentNumber || shipment._id?.slice(-8)} · {shipment.trackingNumber || 'No tracking number'}</p>
+        <div className="flex justify-end space-x-3 pt-4">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">No, Keep Shipment</button>
+          <button onClick={handleDelete} disabled={loading} className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50">
+            {loading ? 'Deleting...' : 'Yes, Delete Shipment'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ==================== MAIN COMPONENT ====================
 export default function AllShipments() {
   const router = useRouter(); 
@@ -4467,6 +4516,7 @@ export default function AllShipments() {
   const [filters, setFilters] = useState({ page: 1, limit: 20, sortBy: 'createdAt', sortOrder: 'desc' });
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const fetchShipments = useCallback(async () => {
     setLoading(true);
@@ -4542,6 +4592,22 @@ setSummary({
       setShowDetailsModal(true);
     } else if (action === 'updateStatus') {
       setShowDetailsModal(true);
+    } else if (action === 'delete') {
+      setShowDeleteModal(true);
+    }
+  };
+
+  const handleDeleteShipment = async (shipmentId) => {
+    try {
+      const result = await deleteNewShipment(shipmentId);
+      if (result.success) {
+        toast.success('Shipment deleted!');
+        fetchShipments();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error('Failed to delete shipment');
     }
   };
 
@@ -4855,6 +4921,12 @@ const displayedShipments = shipments.filter((shipment) => {
         onClose={() => setShowDetailsModal(false)} 
         shipment={selectedShipment}
         onStatusUpdated={handleStatusUpdated}
+      />
+      <DeleteShipmentModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        shipment={selectedShipment}
+        onDelete={handleDeleteShipment}
       />
     </div>
   );

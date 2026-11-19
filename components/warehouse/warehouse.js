@@ -19,7 +19,7 @@ import {
   getInventoryStatusDisplayText,
   deleteWarehouseReceipt
 } from '@/services/warehouse';
-import { getConsolidationQueue, createConsolidation, addToQueue, getMainTypeName, getSubTypeName } from '@/services/consolidation';
+import { getConsolidationQueue, createConsolidation, getMainTypeName, getSubTypeName } from '@/services/consolidation';
 import ConsolidationFields, { createEmptyConsolidationForm, buildConsolidationPayload } from '@/components/warehouse/ConsolidationFields';
 import { formatDate } from '@/services/booking';
 import { 
@@ -754,7 +754,7 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
       };
 
       const receiptId = receipt?._id || data._id;
-      const result = await inspectShipment(receiptId, inspectionData);
+      const result = await inspectShipment(receiptId, inspectionData, photos);
       
       if (result.success) {
         toast.success('✅ Inspection completed successfully');
@@ -763,24 +763,6 @@ const WarehouseModal = ({ shipment, receipt, mode, onClose, onComplete }) => {
           // Route damaged items to damage tab
           onComplete({ nextTab: 'damage', status: 'inspected', data: result.data, isDamaged: true });
         } else {
-          // Try adding inspected-good receipt to pending queue so it moves out of Damage
-          try {
-            const shipmentId =
-              result.data?.shipmentId ||
-              receipt?.shipmentId?._id ||
-              receipt?.shipmentId;
-            if (shipmentId) {
-              const queueRes = await addToQueue(shipmentId);
-              if (queueRes && queueRes.success) {
-                toast.success(queueRes.message || 'Moved to pending queue');
-              } else if (queueRes && !queueRes.success) {
-                console.warn('Auto-add to queue skipped:', queueRes.message);
-              }
-            }
-          } catch (err) {
-            console.error('Failed to add to pending queue after inspection:', err);
-          }
-
           // Route good items to pending tab (or consolidation if coming from consolidation page)
           onComplete({ nextTab: 'pending', status: 'inspected', data: result.data, isDamaged: false });
         }

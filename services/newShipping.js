@@ -230,3 +230,21 @@ export const updateSenderReceiverInfo = async (
     };
   }
 };
+
+export const deleteNewShipment = async (shipmentId) => {
+  try {
+    const response = await axiosInstance.delete(`/delete-new-shipment/${shipmentId}`);
+
+    if (response.data.success) {
+      return { success: true, message: response.data.message };
+    }
+
+    throw new Error(response.data.message || "Failed to delete shipment");
+  } catch (error) {
+    console.error("Delete shipment error:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || error.message || "Failed to delete shipment"
+    };
+  }
+};

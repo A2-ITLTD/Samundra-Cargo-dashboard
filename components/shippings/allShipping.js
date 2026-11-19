@@ -62,7 +62,12 @@ import {
   getReturnStatusColor,
   formatReturnCost
 } from '@/services/shipping';
-import { getAllUsers } from '@/services/Authentication';
+import { getAllUsers, getCurrentUser } from '@/services/Authentication';
+
+const isSuperAdminUser = () => {
+  const user = getCurrentUser();
+  return user?.adminLevel === 'super_admin' || user?.role === 'super_admin';
+};
 
 // Icons
 import {
@@ -982,10 +987,16 @@ const ActionMenu = ({ shipment, onAction }) => {
   const updateMenuPosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    setMenuPosition({
-      top: rect.bottom + 6,
-      left: Math.max(8, rect.right - 224)
-    });
+    const menuHeight = 160;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow >= menuHeight + 12
+      ? rect.bottom + 2
+      : Math.max(8, rect.top - menuHeight - 2);
+    const left = Math.min(
+      Math.max(8, rect.right - 224),
+      Math.max(8, window.innerWidth - 232)
+    );
+    setMenuPosition({ top, left });
   }, []);
 
   useEffect(() => {
@@ -1034,6 +1045,13 @@ const ActionMenu = ({ shipment, onAction }) => {
       color: 'text-red-600',
       show: shipment.status !== 'cancelled' && shipment.status !== 'delivered'
     },
+    {
+      label: 'Delete Shipment',
+      icon: Trash2,
+      action: 'delete',
+      color: 'text-red-700',
+      show: isSuperAdminUser() && ['completed', 'delivered', 'cancelled'].includes(shipment.status)
+    },
   ];
 
   if (hasReturnRequest) {
@@ -1064,7 +1082,7 @@ const ActionMenu = ({ shipment, onAction }) => {
           if (!showMenu) updateMenuPosition();
           setShowMenu(!showMenu);
         }}
-        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        className={`p-2 rounded-lg transition-colors ${showMenu ? 'bg-gray-200 ring-1 ring-gray-300' : 'hover:bg-gray-100'}`}
       >
         <MoreVertical className="h-4 w-4 text-gray-500" />
       </button>
@@ -1803,6 +1821,41 @@ const CancelModal = ({ isOpen, onClose, shipment, onCancel }) => {
   );
 };
 
+const DeleteShipmentModal = ({ isOpen, onClose, shipment, onDelete }) => {
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen || !shipment) return null;
+
+  const handleDelete = async () => {
+    setLoading(true);
+    try {
+      await onDelete(shipment._id);
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Delete Shipment" size="md">
+      <div className="space-y-4">
+        <div className="bg-red-50 p-4 rounded-lg flex items-start">
+          <AlertTriangle className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-800">Permanently delete this shipment?</p>
+            <p className="text-xs text-red-700 mt-1">This removes the shipment, its warehouse receipt, inventory, damage records and damage images. Bookings and invoices are kept, with their shipment links cleared. This cannot be undone.</p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-700">{shipment.shipmentNumber || shipment._id?.slice(-8)} · {shipment.trackingNumber || 'No tracking number'}</p>
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button type="button" variant="ghost" onClick={onClose}>No, Keep Shipment</Button>
+          <Button type="button" variant="danger" isLoading={loading} onClick={handleDelete}>Yes, Delete Shipment</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // Shipment Details Modal
 const ShipmentDetailsModal = ({ isOpen, onClose, shipment }) => {
   const [activeTab, setActiveTab] = useState('details');
@@ -1920,6 +1973,7 @@ export default function ShipmentsPage() {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showWarehouseModal, setShowWarehouseModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [stats, setStats] = useState({ total: 0, active: 0, delivered: 0, cancelled: 0, pending: 0, inTransit: 0 });
   const [topRoutes, setTopRoutes] = useState([]);
@@ -1961,6 +2015,7 @@ export default function ShipmentsPage() {
       case 'note': setShowNoteModal(true); break;
       case 'warehouse': setShowWarehouseModal(true); break;
       case 'cancel': setShowCancelModal(true); break;
+      case 'delete': setShowDeleteModal(true); break;
       case 'download': if (shipment.documents && shipment.documents.length > 0) toast.info('Download feature coming soon'); else toast.info('No documents to download'); break;
       case 'share': if (shipment.trackingNumber) { const trackingUrl = new URL('/tracking-number', window.location.origin); trackingUrl.searchParams.set('tracking', shipment.trackingNumber); trackingUrl.searchParams.set('type', 'tracking_number'); navigator.clipboard.writeText(trackingUrl.toString()); toast.success('Tracking link copied!'); } else toast.warning('No tracking number available'); break;
       default: break;
@@ -1975,6 +2030,7 @@ export default function ShipmentsPage() {
   const handleAddNote = { internalNote: async (shipmentId, noteData) => { try { const result = await addInternalNote(shipmentId, noteData); if (result.success) { toast.success('Internal note added!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to add note'); } }, customerNote: async (shipmentId, noteData) => { try { const result = await addCustomerNote(shipmentId, noteData); if (result.success) { toast.success('Customer note added!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to add note'); } } };
   const handleWarehouseAction = { receive: async (shipmentId, data) => { try { const result = await receiveAtWarehouse(shipmentId, data); if (result.success) { toast.success('Shipment received!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to receive'); } }, process: async (shipmentId, data) => { try { const result = await processWarehouse(shipmentId, data); if (result.success) { toast.success('Warehouse processing completed!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to process'); } } };
   const handleCancelShipment = async (shipmentId, cancelData) => { try { const result = await cancelShipment(shipmentId, cancelData); if (result.success) { toast.success('Shipment cancelled!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to cancel'); } };
+  const handleDeleteShipment = async (shipmentId) => { try { const result = await deleteShipment(shipmentId); if (result.success) { toast.success('Shipment deleted!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to delete shipment'); } };
   const handleExport = () => { if (shipments.length === 0) toast.warning('No shipments to export'); else { exportShipmentsToCSV(shipments); toast.success(`${shipments.length} shipments exported!`); } };
   const handleSelectAll = () => { if (selectedShipments.length === filteredShipments.length) setSelectedShipments([]); else setSelectedShipments(filteredShipments.map(s => s._id)); };
   const filterByStatus = (status) => { setActiveStat(status); if (status === 'all') setFilteredShipments(shipments); else setFilteredShipments(shipments.filter(s => s.status === status)); if (status !== 'all') setFilters(prev => ({ ...prev, page: 1 })); };
@@ -2031,7 +2087,7 @@ export default function ShipmentsPage() {
                 <tr><th className="w-10 px-4 py-3"></th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><div className="flex items-center cursor-pointer hover:text-gray-700" onClick={() => handleSort('shipmentNumber')}>Shipment Info<ArrowUpDown className="h-4 w-4 ml-1" /></div></th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><div className="flex items-center cursor-pointer hover:text-gray-700" onClick={() => handleSort('customer')}>Customer<ArrowUpDown className="h-4 w-4 ml-1" /></div></th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><div className="flex items-center cursor-pointer hover:text-gray-700" onClick={() => handleSort('createdAt')}>Created<ArrowUpDown className="h-4 w-4 ml-1" /></div></th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Packages</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th></tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {loading ? (<tr><td colSpan="9" className="px-4 py-8 text-center"><div className="flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" style={{ color: COLORS.primary }} /><span className="ml-2 text-sm text-gray-500">Loading shipments...</span></div></td></tr>) : filteredShipments.length === 0 ? (<tr><td colSpan="9" className="px-4 py-8 text-center"><div className="flex flex-col items-center"><Package className="h-12 w-12 text-gray-400 mb-3" /><p className="text-sm text-gray-500">No shipments found</p></div></td></tr>) : (filteredShipments.map((shipment) => { const totalWeight = calculateTotalWeight(shipment.packages); const progress = getShipmentProgress(shipment.status); const trackingStatus = getTrackingStatus(shipment); const statusConfig = STATUS_CONFIG[shipment.status] || {}; return (<tr key={shipment._id} className="hover:bg-gray-50 transition-colors group"><td className="px-4 py-3"></td><td className="px-4 py-3"><div><div className="text-sm font-medium cursor-pointer hover:underline" style={{ color: COLORS.primary }} onClick={() => { setSelectedShipment(shipment); setShowDetailsModal(true); }}>{shipment.shipmentNumber || shipment._id?.slice(-8).toUpperCase()}</div>{shipment.trackingNumber && (<div className="text-xs text-gray-500 flex items-center mt-1"><Hash className="h-3 w-3 mr-1" />{shipment.trackingNumber}</div>)}</div></td><td className="px-4 py-3"><div className="text-sm font-medium text-gray-900">{shipment.customerId?.companyName || `${shipment.customerId?.firstName || ''} ${shipment.customerId?.lastName || ''}`.trim() || 'N/A'}</div>{shipment.customerId?.email && <div className="text-xs text-gray-500">{shipment.customerId.email}</div>}</td><td className="px-4 py-3"><div className="flex items-center text-xs"><span className="font-medium text-gray-900">{shipment.shipmentDetails?.origin || 'N/A'}</span><ChevronRight className="h-3 w-3 mx-1 text-gray-400" /><span className="font-medium text-gray-900">{shipment.shipmentDetails?.destination || 'N/A'}</span></div></td><td className="px-4 py-3"><div className="text-xs text-gray-500">{formatShipmentDate(shipment.createdAt, 'short')}</div></td><td className="px-4 py-3"><div className="text-xs"><div className="text-gray-900">{shipment.packages?.length || 0} pkgs</div><div className="text-gray-500">{formatWeight(totalWeight)}</div></div></td><td className="px-4 py-3"><div className="flex flex-col space-y-1"><StatusBadge status={shipment.status} size="sm" />{!statusConfig.hideProgress && <div className="w-24"><ProgressBar progress={progress} /></div>}</div></td><td className="px-4 py-3"><ActionMenu shipment={shipment} onAction={handleAction} /></td></tr>); }))}
+                {loading ? (<tr><td colSpan="9" className="px-4 py-8 text-center"><div className="flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" style={{ color: COLORS.primary }} /><span className="ml-2 text-sm text-gray-500">Loading shipments...</span></div></td></tr>) : filteredShipments.length === 0 ? (<tr><td colSpan="9" className="px-4 py-8 text-center"><div className="flex flex-col items-center"><Package className="h-12 w-12 text-gray-400 mb-3" /><p className="text-sm text-gray-500">No shipments found</p></div></td></tr>) : (filteredShipments.map((shipment) => { const totalWeight = calculateTotalWeight(shipment.packages); const progress = getShipmentProgress(shipment.status); const trackingStatus = getTrackingStatus(shipment); const statusConfig = STATUS_CONFIG[shipment.status] || {}; return (<tr key={shipment._id} className="hover:bg-gray-50 transition-colors group"><td className="px-4 py-3"></td><td className="px-4 py-3 whitespace-nowrap"><div><div className="text-sm font-medium cursor-pointer hover:underline whitespace-nowrap" style={{ color: COLORS.primary }} onClick={() => { setSelectedShipment(shipment); setShowDetailsModal(true); }}>{shipment.shipmentNumber || shipment._id?.slice(-8).toUpperCase()}</div>{shipment.trackingNumber && (<div className="text-xs text-gray-500 flex items-center mt-1"><Hash className="h-3 w-3 mr-1" />{shipment.trackingNumber}</div>)}</div></td><td className="px-4 py-3"><div className="text-sm font-medium text-gray-900">{shipment.customerId?.companyName || `${shipment.customerId?.firstName || ''} ${shipment.customerId?.lastName || ''}`.trim() || 'N/A'}</div>{shipment.customerId?.email && <div className="text-xs text-gray-500">{shipment.customerId.email}</div>}</td><td className="px-4 py-3"><div className="flex items-center text-xs"><span className="font-medium text-gray-900">{shipment.shipmentDetails?.origin || 'N/A'}</span><ChevronRight className="h-3 w-3 mx-1 text-gray-400" /><span className="font-medium text-gray-900">{shipment.shipmentDetails?.destination || 'N/A'}</span></div></td><td className="px-4 py-3"><div className="text-xs text-gray-500">{formatShipmentDate(shipment.createdAt, 'short')}</div></td><td className="px-4 py-3"><div className="text-xs"><div className="text-gray-900">{shipment.packages?.length || 0} pkgs</div><div className="text-gray-500">{formatWeight(totalWeight)}</div></div></td><td className="px-4 py-3"><div className="flex flex-col space-y-1"><StatusBadge status={shipment.status} size="sm" />{!statusConfig.hideProgress && <div className="w-24"><ProgressBar progress={progress} /></div>}</div></td><td className="px-4 py-3"><ActionMenu shipment={shipment} onAction={handleAction} /></td></tr>); }))}
               </tbody>
             </table>
           </div>
@@ -2050,6 +2106,7 @@ export default function ShipmentsPage() {
       <NoteModal isOpen={showNoteModal} onClose={() => setShowNoteModal(false)} shipment={selectedShipment} onAdd={handleAddNote} />
       <WarehouseModal isOpen={showWarehouseModal} onClose={() => setShowWarehouseModal(false)} shipment={selectedShipment} onAction={handleWarehouseAction} />
       <CancelModal isOpen={showCancelModal} onClose={() => setShowCancelModal(false)} shipment={selectedShipment} onCancel={handleCancelShipment} />
+      <DeleteShipmentModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} shipment={selectedShipment} onDelete={handleDeleteShipment} />
       <ReturnRequestsModal isOpen={showReturnRequestsModal} onClose={() => setShowReturnRequestsModal(false)} onRefresh={fetchShipments} />
     </div>
   );

@@ -1,5 +1,8 @@
 // services/warehouseService.js
+import axios from 'axios';
 import axiosInstance from '@/lib/axiosInstance';
+import { getAuthToken } from '@/utils/SessionHelper';
+import { BASE_URL } from '@/utils/confiq';
 
 // ==================== WAREHOUSE API FUNCTIONS ====================
 
@@ -618,11 +621,26 @@ export const updateWarehouse = async (warehouseId, updateData) => {
 
 // 17. INSPECT RECEIVED SHIPMENT 
 
-export const inspectShipment = async (receiptId, inspectionData) => {
+export const inspectShipment = async (receiptId, inspectionData, photos = []) => {
   try {
-    console.log('🔍 Sending inspection data:', inspectionData);
-    
-    const response = await axiosInstance.post(`/inspect/${receiptId}`, inspectionData);
+    const formData = new FormData();
+    formData.append('condition', inspectionData.condition || '');
+    formData.append('findings', inspectionData.findings || '');
+    formData.append('disposition', inspectionData.disposition || '');
+    formData.append('details', JSON.stringify(inspectionData.details || []));
+    formData.append('summary', JSON.stringify(inspectionData.summary || {}));
+
+    photos.forEach((photo, index) => {
+      if (photo?.file) {
+        formData.append('photos', photo.file, photo.name || `damage-${index}`);
+      }
+    });
+
+    const uploadClient = axios.create({ baseURL: BASE_URL, timeout: 120000 });
+    const token = getAuthToken();
+    const response = await uploadClient.post(`/inspect/${receiptId}`, formData, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
     
     if (response.data.success) {
       return {
