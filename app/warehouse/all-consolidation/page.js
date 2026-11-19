@@ -76,7 +76,7 @@ import {
   cancelConsolidation
 } from '@/services/consolidation';
 import { trackByNumber } from '@/services/booking';
-import { getShipmentById } from '@/services/shipping';
+import { getShipmentById, getShipmentStatusDisplayText } from '@/services/shipping';
 import axiosInstance from '@/lib/axiosInstance';
 import { getAuthToken } from '@/utils/SessionHelper';
 
@@ -296,6 +296,32 @@ const getSealNumber = (consolidation) => {
   if (!consolidation) return 'N/A';
   return consolidation.sealNumber || 'N/A';
 };
+
+const getConsolidationVesselValue = (consolidation) => {
+  if (!consolidation) return '';
+  const candidates = [
+    consolidation.vesselName,
+    consolidation.vesselNames,
+    consolidation.vesselNumber,
+    consolidation.transport?.vesselName,
+    consolidation.carrier?.vesselName,
+    consolidation.carrier?.vesselNumber,
+    consolidation.carrier?.flightNumber,
+  ];
+  const values = [];
+  candidates.forEach((candidate) => {
+    if (!candidate) return;
+    const list = Array.isArray(candidate) ? candidate : [candidate];
+    list.forEach((item) => {
+      const value = String(item).trim();
+      if (value && value !== 'N/A' && value !== 'Not assigned' && !values.includes(value)) {
+        values.push(value);
+      }
+    });
+  });
+  return values.join(', ');
+};
+
 const consolidationMatchesSearch = (consolidation, searchTerm) => {
   if (!searchTerm || !consolidation) return false;
   const term = searchTerm.toString().toLowerCase().trim();
@@ -656,7 +682,7 @@ const ShipmentCard = ({ shipment, consolidationId, consolidationStatus, onShipme
 // Handle Cancel - সম্পূর্ণরূপে কনটেইনার থেকে রিমুভ করে
 const handleCancel = async () => {
   if (!canModify) {
-    toast.warning(`Cannot cancel ${currentStatus} shipment`);
+          toast.warning(`Cannot cancel ${getShipmentStatusDisplayText(currentStatus)} shipment`);
     return;
   }
   
@@ -693,7 +719,7 @@ const handleCancel = async () => {
 // Handle Hold - শুধুমাত্র status change, কনটেইনার থেকে রিমুভ না
 const handleOnHold = async () => {
   if (!canModify) {
-    toast.warning(`Cannot put ${currentStatus} shipment on hold`);
+          toast.warning(`Cannot put ${getShipmentStatusDisplayText(currentStatus)} shipment on hold`);
     return;
   }
   
@@ -1286,19 +1312,16 @@ const ConsolidationCard = ({
         </div>
 
         <div className="flex items-center justify-between gap-2 rounded-lg border border-purple-100 bg-purple-50/70 px-2.5 py-1.5">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <Box className="h-3.5 w-3.5 text-purple-600 shrink-0" />
             <span className="text-[11px] font-semibold text-purple-800 whitespace-nowrap">{containerType}</span>
           </div>
-          <div className="flex items-center gap-1.5 min-w-0 text-[10px] font-mono text-purple-700">
-            <span className="truncate" title={consolidation.containerNumber}>
+          <div className="flex flex-col min-w-0 text-[10px] font-mono text-purple-700 leading-tight">
+            <span className="truncate" title={consolidation.containerNumber || ''}>
               {consolidation.containerNumber || 'No container'}
             </span>
             {sealNumber && (
-              <>
-                <span className="text-purple-300">|</span>
-                <span className="truncate" title={sealNumber}>{sealNumber}</span>
-              </>
+              <span className="truncate" title={sealNumber}>Seal: {sealNumber}</span>
             )}
           </div>
         </div>
@@ -1737,11 +1760,11 @@ const ConsolidationDetailsModal = ({
                 </div>
                 <div className="bg-gray-50 p-2 rounded">
                   <p className="text-[10px] text-gray-500">Number</p>
-                  <p className="text-xs font-mono">{consolidation.containerNumber || 'N/A'}</p>
+                  <p className="text-xs font-mono truncate" title={consolidation.containerNumber || ''}>{consolidation.containerNumber || 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-2 rounded">
                   <p className="text-[10px] text-gray-500">Seal</p>
-                  <p className="text-xs font-mono">{consolidation.sealNumber || consolidation.seal || consolidation.sealNo || 'N/A'}</p>
+                  <p className="text-xs font-mono truncate" title={(consolidation.sealNumber || consolidation.seal || consolidation.sealNo || '')}>{consolidation.sealNumber || consolidation.seal || consolidation.sealNo || 'N/A'}</p>
                 </div>
               </div>
 
@@ -2288,7 +2311,7 @@ const TableRow = ({
                     <div className="flex items-center justify-between">
                       <span className="font-mono">{shipment.trackingNumber || `SHP-${idx + 1}`}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100">
-                        {shipment.status?.replace(/_/g, ' ') || 'pending'}
+                        {getShipmentStatusDisplayText(shipment.status || 'pending')}
                       </span>
                     </div>
                     <div className="text-[10px] text-gray-500 mt-1">
@@ -2463,7 +2486,7 @@ const ListItem = ({
                       </div>
                     </div>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100">
-                      {shipment.status?.replace(/_/g, ' ') || 'pending'}
+                      {getShipmentStatusDisplayText(shipment.status || 'pending')}
                     </span>
                   </div>
                 </div>
@@ -3980,6 +4003,18 @@ const ContainerSealedModal = ({ isOpen, onClose, consolidation, onSuccess }) => 
     notes: ''
   });
 
+  const existingSeal = consolidation?.sealNumber || consolidation?.seal || consolidation?.sealNo || '';
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        sealDate: new Date().toISOString().split('T')[0],
+        sealNumber: existingSeal,
+        notes: ''
+      });
+    }
+  }, [isOpen, consolidation?._id, existingSeal]);
+
   const handleSubmit = async () => {
     if (!consolidation?._id) {
       toast.error('Invalid consolidation');
@@ -4052,6 +4087,9 @@ const ContainerSealedModal = ({ isOpen, onClose, consolidation, onSuccess }) => 
               placeholder="e.g., SEAL-12345"
               className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-indigo-600"
             />
+            <p className="mt-1 text-[10px] text-gray-500">
+              Prefilled from the consolidation record. Change it only if the physical seal differs.
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -4101,6 +4139,19 @@ const DepartedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
     vesselName: '',
     notes: ''
   });
+
+  const existingVessel = getConsolidationVesselValue(consolidation);
+
+  useEffect(() => {
+    if (isOpen && consolidation) {
+      setFormData({
+        departureDate: new Date().toISOString().split('T')[0],
+        portName: '',
+        vesselName: existingVessel,
+        notes: ''
+      });
+    }
+  }, [isOpen, consolidation?._id, existingVessel]);
 
   const handleSubmit = async () => {
     if (!consolidation?._id) {
@@ -4188,6 +4239,9 @@ const DepartedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
               placeholder="e.g., Maersk Seatrade"
               className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-emerald-600"
             />
+            <p className="mt-1 text-[10px] text-gray-500">
+              Prefilled from the consolidation record. Change it if the vessel differs.
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -4467,15 +4521,17 @@ const ArrivedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
     notes: ''
   });
 
+  const existingVessel = getConsolidationVesselValue(consolidation);
+
   useEffect(() => {
     if (isOpen && consolidation) {
       setFormData(prev => ({
         ...prev,
         portName: consolidation.destinationPort || 'Destination Port',
-        vesselName: consolidation.carrier?.vesselNumber || consolidation.carrier?.flightNumber || 'Not assigned'
+        vesselName: existingVessel
       }));
     }
-  }, [isOpen, consolidation]);
+  }, [isOpen, consolidation?._id, existingVessel]);
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -4562,6 +4618,9 @@ const ArrivedModal = ({ isOpen, onClose, consolidation, onSuccess }) => {
               onChange={(e) => setFormData({...formData, vesselName: e.target.value})}
               className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-600"
             />
+            <p className="mt-1 text-[10px] text-gray-500">
+              Prefilled from the consolidation record. Change it if needed.
+            </p>
           </div>
 
           <div>

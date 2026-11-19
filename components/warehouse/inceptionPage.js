@@ -186,7 +186,7 @@ const InspectionCard = ({ receipt, onInspect }) => {
               receipt.inspection.condition === 'Minor Damage' ? 'bg-yellow-100 text-yellow-700' :
               'bg-red-100 text-red-700'
             }`}>
-              {receipt.inspection.condition}
+              {getConditionDisplayText(receipt.inspection.condition)}
             </span>
           </div>
           {receipt.inspection.findings && (
