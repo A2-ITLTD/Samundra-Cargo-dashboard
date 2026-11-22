@@ -2840,6 +2840,12 @@ const handleInputChange = (e) => {
       const result = await acceptQuote(bookingId, notes);
       if (result.success) {
         toast.success('Quote accepted successfully!');
+        if (result.warning || !result.data?.shipment) {
+          toast.error(
+            result.warning || 'A shipment was not created for this booking. Please check All Shipments or contact support.',
+            { autoClose: false }
+          );
+        }
         toast.info(
           'Booking status is now Accepted. Check Shipment, Warehouse Home, and All Shipments for the next stage.',
           {

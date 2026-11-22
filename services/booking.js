@@ -243,7 +243,8 @@ export const acceptQuote = async (bookingId, notes = '') => {
       return {
         success: true,
         data: response.data.data,
-        message: response.data.message
+        message: response.data.message,
+        warning: response.data.warning
       };
     }
     
