@@ -62,7 +62,12 @@ import {
   getReturnStatusColor,
   formatReturnCost
 } from '@/services/shipping';
-import { getAllUsers } from '@/services/Authentication';
+import { getAllUsers, getCurrentUser } from '@/services/Authentication';
+
+const isSuperAdminUser = () => {
+  const user = getCurrentUser();
+  return user?.adminLevel === 'super_admin' || user?.role === 'super_admin';
+};
 
 // Icons
 import {
@@ -364,6 +369,110 @@ const STATUS_CONFIG = {
     color: 'bg-green-50 text-green-700 border-green-200',
     icon: CheckCircleSolid,
     progress: 100,
+    editable: false,
+    cancellable: false
+  },
+  booking: {
+    label: 'Booking',
+    color: 'bg-blue-50 text-blue-700 border-blue-200',
+    icon: FileText,
+    progress: 5,
+    editable: false,
+    cancellable: true
+  },
+  booking_requested: {
+    label: 'Booking Requested',
+    color: 'bg-blue-50 text-blue-700 border-blue-200',
+    icon: Clock,
+    progress: 5,
+    editable: false,
+    cancellable: true
+  },
+  price_quoted: {
+    label: 'Price Quoted',
+    color: 'bg-amber-50 text-amber-700 border-amber-200',
+    icon: DollarSign,
+    progress: 8,
+    editable: false,
+    cancellable: true
+  },
+  booking_confirmed: {
+    label: 'Booking Confirmed',
+    color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    icon: CheckCircle,
+    progress: 10,
+    editable: false,
+    cancellable: false
+  },
+  loaded: {
+    label: 'Loaded',
+    color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    icon: Package,
+    progress: 40,
+    editable: false,
+    cancellable: false
+  },
+  loaded_into_container: {
+    label: 'Loaded into Container',
+    color: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    icon: Package,
+    progress: 40,
+    editable: false,
+    cancellable: false
+  },
+  container_sealed: {
+    label: 'Container Sealed',
+    color: 'bg-purple-50 text-purple-700 border-purple-200',
+    icon: Shield,
+    progress: 55,
+    editable: false,
+    cancellable: false
+  },
+  departed: {
+    label: 'Departed',
+    color: 'bg-amber-50 text-amber-700 border-amber-200',
+    icon: Send,
+    progress: 60,
+    editable: false,
+    cancellable: false
+  },
+  under_customs_clearance: {
+    label: 'Under Customs Clearance',
+    color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    icon: Shield,
+    progress: 80,
+    editable: false,
+    cancellable: false
+  },
+  under_customs_cleared: {
+    label: 'Under Customs Cleared',
+    color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    icon: Shield,
+    progress: 82,
+    editable: false,
+    cancellable: false
+  },
+  unloaded_from_vessel: {
+    label: 'Unloaded from Vessel',
+    color: 'bg-teal-50 text-teal-700 border-teal-200',
+    icon: Anchor,
+    progress: 90,
+    editable: false,
+    cancellable: false
+  },
+  rejected: {
+    label: 'Rejected',
+    color: 'bg-red-50 text-red-700 border-red-200',
+    icon: XCircleSolid,
+    progress: 0,
+    editable: false,
+    cancellable: false
+  },
+  return_initiated: {
+    label: 'Return Initiated',
+    color: 'bg-orange-50 text-orange-700 border-orange-200',
+    icon: Undo2,
+    progress: 0,
     editable: false,
     cancellable: false
   }
@@ -740,6 +849,110 @@ const ShipmentModeBadge = ({ mode }) => {
   );
 };
 
+const TIMELINE_STATUS_ICONS = {
+  draft: { icon: FileText, color: 'text-gray-600' },
+  pending: { icon: Clock, color: 'text-amber-600' },
+  booking_confirmed: { icon: CheckCircle, color: 'text-green-600' },
+  price_quoted: { icon: DollarSign, color: 'text-green-600' },
+  picked_up_from_warehouse: { icon: Truck, color: 'text-blue-600' },
+  received_at_warehouse: { icon: Building2, color: 'text-blue-600' },
+  inspected: { icon: FileCheck, color: 'text-green-600' },
+  consolidating: { icon: Layers, color: 'text-indigo-600' },
+  consolidated: { icon: Layers, color: 'text-indigo-600' },
+  consolidation_in_progress: { icon: Layers, color: 'text-indigo-600' },
+  ready_for_dispatch: { icon: Box, color: 'text-indigo-600' },
+  ready_for_shipping: { icon: Box, color: 'text-indigo-600' },
+  loaded_in_container: { icon: Package, color: 'text-indigo-600' },
+  loaded_into_container: { icon: Package, color: 'text-indigo-600' },
+  container_sealed: { icon: Shield, color: 'text-indigo-600' },
+  dispatched: { icon: Send, color: 'text-red-600' },
+  departed_port_of_origin: { icon: Ship, color: 'text-cyan-600' },
+  in_transit: { icon: Truck, color: 'text-cyan-600' },
+  in_transit_sea_freight: { icon: Ship, color: 'text-cyan-600' },
+  arrived_at_destination: { icon: MapPin, color: 'text-teal-600' },
+  arrived_at_destination_port: { icon: Anchor, color: 'text-teal-600' },
+  under_customs_clearance: { icon: Shield, color: 'text-amber-600' },
+  customs_clearance: { icon: Shield, color: 'text-amber-600' },
+  customs_cleared: { icon: CheckCircle, color: 'text-emerald-600' },
+  unloaded_from_vessel: { icon: Anchor, color: 'text-teal-600' },
+  out_for_delivery: { icon: Truck, color: 'text-pink-600' },
+  delivered: { icon: CheckCircleSolid, color: 'text-green-600' },
+  completed: { icon: Award, color: 'text-green-600' },
+  damage_reported: { icon: AlertTriangle, color: 'text-red-600' },
+  on_hold: { icon: Pause, color: 'text-amber-600' },
+  cancelled: { icon: XCircleSolid, color: 'text-red-600' },
+  returned: { icon: RotateCcw, color: 'text-red-600' },
+  return_requested: { icon: Undo2, color: 'text-amber-600' },
+  return_approved: { icon: CheckCircle, color: 'text-green-600' },
+  return_rejected: { icon: XCircleSolid, color: 'text-red-600' },
+  return_completed: { icon: RotateCcw, color: 'text-green-600' }
+};
+
+const TIMELINE_TYPE_ICONS = {
+  status: { icon: Activity, color: 'text-blue-600' },
+  tracking: { icon: MapPin, color: 'text-green-600' },
+  note: { icon: MessageSquare, color: 'text-purple-600' },
+  cost: { icon: DollarSign, color: 'text-yellow-600' },
+  document: { icon: FileText, color: 'text-gray-600' }
+};
+
+const getTimelineIcon = (event) => {
+  const status = String(event?.status || '').toLowerCase();
+  const type = String(event?.type || '').toLowerCase();
+  return TIMELINE_STATUS_ICONS[status] || TIMELINE_TYPE_ICONS[type] || { icon: HelpCircle, color: 'text-gray-500' };
+};
+
+const getTimelineIconBg = (event) => {
+  const status = String(event?.status || '').toLowerCase();
+  if (['delivered', 'completed', 'customs_cleared', 'booking_confirmed'].includes(status)) return 'bg-green-100';
+  if (['arrived_at_destination_port', 'under_customs_clearance', 'customs_clearance', 'unloaded_from_vessel'].includes(status)) return 'bg-teal-100';
+  if (['out_for_delivery', 'dispatched', 'in_transit', 'in_transit_sea_freight', 'departed_port_of_origin'].includes(status)) return 'bg-cyan-100';
+  if (['on_hold', 'cancelled', 'damage_reported', 'return_rejected'].includes(status)) return 'bg-red-100';
+  if (status) return 'bg-blue-100';
+  return 'bg-gray-100';
+};
+
+const getTimelineEventTime = (event) =>
+  new Date(event?.timestamp || event?.date || event?.createdAt || 0).getTime();
+
+const getLocalDateTimeInput = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+};
+
+const TIMELINE_STATUS_ORDER = [
+  'draft', 'booking_requested', 'pending', 'price_quoted', 'booking_confirmed',
+  'picked_up_from_warehouse', 'received_at_warehouse', 'inspected',
+  'consolidating', 'consolidated', 'consolidation_in_progress',
+  'ready_for_dispatch', 'ready_for_shipping', 'loaded_in_container', 'loaded_into_container',
+  'container_sealed', 'dispatched', 'departed_port_of_origin',
+  'in_transit', 'in_transit_sea_freight', 'arrived_at_destination',
+  'arrived_at_destination_port', 'under_customs_clearance', 'customs_clearance',
+  'customs_cleared', 'unloaded_from_vessel', 'out_for_delivery', 'delivered', 'completed',
+  'damage_reported', 'on_hold', 'cancelled', 'return_requested', 'return_approved',
+  'return_rejected', 'return_completed', 'returned'
+];
+
+const getTimelineStatusOrder = (event) => {
+  const status = String(event?.status || '').toLowerCase();
+  const index = TIMELINE_STATUS_ORDER.indexOf(status);
+  return index === -1 ? TIMELINE_STATUS_ORDER.length : index;
+};
+
+const toTimelineArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (value && Array.isArray(value.events)) return value.events;
+  if (value && Array.isArray(value.data)) return value.data;
+  return [];
+};
+
+const sortTimelineEvents = (events) =>
+  toTimelineArray(events).sort((a, b) => {
+    const timeDiff = getTimelineEventTime(a) - getTimelineEventTime(b);
+    return timeDiff !== 0 ? timeDiff : getTimelineStatusOrder(a) - getTimelineStatusOrder(b);
+  });
+
 // Progress Bar Component
 const ProgressBar = ({ progress, height = 'h-2', showLabel = false }) => {
   return (
@@ -774,10 +987,16 @@ const ActionMenu = ({ shipment, onAction }) => {
   const updateMenuPosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    setMenuPosition({
-      top: rect.bottom + 6,
-      left: Math.max(8, rect.right - 224)
-    });
+    const menuHeight = 160;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow >= menuHeight + 12
+      ? rect.bottom + 2
+      : Math.max(8, rect.top - menuHeight - 2);
+    const left = Math.min(
+      Math.max(8, rect.right - 224),
+      Math.max(8, window.innerWidth - 232)
+    );
+    setMenuPosition({ top, left });
   }, []);
 
   useEffect(() => {
@@ -826,6 +1045,13 @@ const ActionMenu = ({ shipment, onAction }) => {
       color: 'text-red-600',
       show: shipment.status !== 'cancelled' && shipment.status !== 'delivered'
     },
+    {
+      label: 'Delete Shipment',
+      icon: Trash2,
+      action: 'delete',
+      color: 'text-red-700',
+      show: isSuperAdminUser() && ['completed', 'delivered', 'cancelled'].includes(shipment.status)
+    },
   ];
 
   if (hasReturnRequest) {
@@ -856,7 +1082,7 @@ const ActionMenu = ({ shipment, onAction }) => {
           if (!showMenu) updateMenuPosition();
           setShowMenu(!showMenu);
         }}
-        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        className={`p-2 rounded-lg transition-colors ${showMenu ? 'bg-gray-200 ring-1 ring-gray-300' : 'hover:bg-gray-100'}`}
       >
         <MoreVertical className="h-4 w-4 text-gray-500" />
       </button>
@@ -1301,12 +1527,12 @@ const StatusUpdateModal = ({ isOpen, onClose, shipment, onUpdate }) => {
     status: '',
     location: '',
     description: '',
-    timestamp: new Date().toISOString().slice(0, 16)
+    timestamp: getLocalDateTimeInput()
   });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (shipment) setFormData({ status: shipment.status || '', location: '', description: '', timestamp: new Date().toISOString().slice(0, 16) });
+    if (shipment) setFormData({ status: shipment.status || '', location: '', description: '', timestamp: getLocalDateTimeInput() });
   }, [shipment]);
 
   if (!isOpen || !shipment) return null;
@@ -1338,10 +1564,10 @@ const StatusUpdateModal = ({ isOpen, onClose, shipment, onUpdate }) => {
 
 // Tracking Update Modal
 const TrackingUpdateModal = ({ isOpen, onClose, shipment, onAdd }) => {
-  const [formData, setFormData] = useState({ status: 'in_transit', location: '', description: '', timestamp: new Date().toISOString().slice(0, 16), coordinates: '' });
+  const [formData, setFormData] = useState({ status: 'in_transit', location: '', description: '', timestamp: getLocalDateTimeInput(), coordinates: '' });
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (shipment) setFormData({ status: 'in_transit', location: '', description: '', timestamp: new Date().toISOString().slice(0, 16), coordinates: '' }); }, [shipment]);
+  useEffect(() => { if (shipment) setFormData({ status: 'in_transit', location: '', description: '', timestamp: getLocalDateTimeInput(), coordinates: '' }); }, [shipment]);
   if (!isOpen || !shipment) return null;
 
   const trackingStatusOptions = [{ value: 'pending', label: 'Pending Pickup' }, { value: 'picked_up', label: 'Picked Up' }, { value: 'in_transit', label: 'In Transit' }, { value: 'arrived_at_facility', label: 'Arrived at Facility' }, { value: 'arrived_at_destination_port', label: 'Arrived at Port' }, { value: 'customs_cleared', label: 'Customs Cleared' }, { value: 'out_for_delivery', label: 'Out for Delivery' }, { value: 'delivered', label: 'Delivered' }, { value: 'exception', label: 'Exception' }];
@@ -1369,12 +1595,12 @@ const TrackingUpdateModal = ({ isOpen, onClose, shipment, onAdd }) => {
 
 // Assign Staff Modal
 const AssignModal = ({ isOpen, onClose, shipment, onAssign }) => {
-  const [formData, setFormData] = useState({ staffId: '', role: 'operations', notes: '' });
+  const [formData, setFormData] = useState({ staffId: '', role: 'warehouse', notes: '' });
   const [loading, setLoading] = useState(false);
   const [staffOptions, setStaffOptions] = useState([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
 
-  useEffect(() => { if (shipment) setFormData({ staffId: '', role: 'operations', notes: '' }); }, [shipment]);
+  useEffect(() => { if (shipment) setFormData({ staffId: '', role: 'warehouse', notes: '' }); }, [shipment]);
 
   // Load the REAL staff list from the backend. (Previously this was a hardcoded
   // list of fake names/ids like "staff1/John Doe", so assigning always failed
@@ -1406,7 +1632,7 @@ const AssignModal = ({ isOpen, onClose, shipment, onAssign }) => {
 
   if (!isOpen || !shipment) return null;
 
-  const roleOptions = [{ value: 'operations', label: 'Operations' }, { value: 'warehouse', label: 'Warehouse' }, { value: 'driver', label: 'Driver' }, { value: 'customs', label: 'Customs Broker' }, { value: 'customer_service', label: 'Customer Service' }];
+  const roleOptions = [{ value: 'warehouse', label: 'Warehouse' }, { value: 'driver', label: 'Driver' }, { value: 'customs', label: 'Customs Broker' }, { value: 'customer_service', label: 'Customer Service' }];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1595,6 +1821,41 @@ const CancelModal = ({ isOpen, onClose, shipment, onCancel }) => {
   );
 };
 
+const DeleteShipmentModal = ({ isOpen, onClose, shipment, onDelete }) => {
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen || !shipment) return null;
+
+  const handleDelete = async () => {
+    setLoading(true);
+    try {
+      await onDelete(shipment._id);
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Delete Shipment" size="md">
+      <div className="space-y-4">
+        <div className="bg-red-50 p-4 rounded-lg flex items-start">
+          <AlertTriangle className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-800">Permanently delete this shipment?</p>
+            <p className="text-xs text-red-700 mt-1">This removes the shipment, its warehouse receipt, inventory, damage records and damage images. Bookings and invoices are kept, with their shipment links cleared. This cannot be undone.</p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-700">{shipment.shipmentNumber || shipment._id?.slice(-8)} · {shipment.trackingNumber || 'No tracking number'}</p>
+        <div className="flex justify-end space-x-3 pt-4">
+          <Button type="button" variant="ghost" onClick={onClose}>No, Keep Shipment</Button>
+          <Button type="button" variant="danger" isLoading={loading} onClick={handleDelete}>Yes, Delete Shipment</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // Shipment Details Modal
 const ShipmentDetailsModal = ({ isOpen, onClose, shipment }) => {
   const [activeTab, setActiveTab] = useState('details');
@@ -1616,6 +1877,7 @@ const ShipmentDetailsModal = ({ isOpen, onClose, shipment }) => {
   const onTrack = isOnTrack(shipment.transport?.estimatedArrival, shipment.actualDeliveryDate, shipment.status);
   const progress = trackingData?.progress || getShipmentProgress(shipment.status);
   const currentLocation = trackingData?.currentLocation || 'In Transit';
+  const timelineEvents = sortTimelineEvents(trackingData?.timeline?.length ? trackingData.timeline : timeline);
   const tabs = [{ id: 'details', label: 'Details', icon: Package }, { id: 'packages', label: 'Packages', icon: Box }, { id: 'transport', label: 'Transport', icon: Truck },  { id: 'timeline', label: 'Timeline', icon: Activity }];
 
   return (
@@ -1655,7 +1917,7 @@ const ShipmentDetailsModal = ({ isOpen, onClose, shipment }) => {
               )} */}
               {activeTab === 'timeline' && (
                 <div className="space-y-4">
-                  {trackingLoading || loading ? <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" style={{ color: COLORS.primary }} /></div> : (trackingData?.timeline?.length > 0 || timeline.length > 0) ? <div className="relative">{(trackingData?.timeline || timeline).map((event, index) => (<div key={index} className="flex items-start space-x-3 mb-4"><div className="flex-shrink-0"><div className={`w-8 h-8 rounded-full flex items-center justify-center ${event.status === 'delivered' || event.status === 'completed' ? 'bg-green-100' : event.status === 'arrived_at_destination_port' ? 'bg-teal-100' : event.status === 'customs_cleared' ? 'bg-emerald-100' : event.status === 'out_for_delivery' ? 'bg-pink-100' : event.status === 'in_transit' ? 'bg-cyan-100' : event.type === 'status' ? 'bg-blue-100' : event.type === 'tracking' ? 'bg-green-100' : event.type === 'note' ? 'bg-purple-100' : event.type === 'cost' ? 'bg-yellow-100' : 'bg-gray-100'}`}>{event.status === 'delivered' && <CheckCircleSolid className="h-4 w-4 text-green-600" />}{event.status === 'arrived_at_destination_port' && <Flag className="h-4 w-4 text-teal-600" />}{event.status === 'customs_cleared' && <Shield className="h-4 w-4 text-emerald-600" />}{event.status === 'out_for_delivery' && <Truck className="h-4 w-4 text-pink-600" />}{event.status === 'in_transit' && <Truck className="h-4 w-4 text-cyan-600" />}{event.type === 'status' && <Activity className="h-4 w-4 text-blue-600" />}{event.type === 'tracking' && <MapPin className="h-4 w-4 text-green-600" />}{event.type === 'note' && <MessageSquare className="h-4 w-4 text-purple-600" />}{event.type === 'cost' && <DollarSign className="h-4 w-4 text-yellow-600" />}{event.type === 'document' && <FileText className="h-4 w-4 text-gray-600" />}</div></div><div className="flex-1 bg-gray-50 rounded-lg p-3"><div className="flex justify-between items-start"><div><p className="text-sm font-medium text-gray-900">{event.statusLabel || getShipmentStatusDisplayText(event.status) || event.title || 'Update'}</p>{event.description && <p className="text-xs text-gray-600 mt-1">{event.description}</p>}{event.location && <p className="text-xs text-gray-500 mt-1 flex items-center"><MapPin className="h-3 w-3 mr-1" />{event.location}</p>}</div><p className="text-xs text-gray-400">{formatShipmentDate(event.timestamp || event.date || event.createdAt, 'long')}</p></div>{event.updatedBy && <p className="text-xs text-gray-400 mt-2">By: {event.updatedBy}</p>}</div></div>))}</div> : <p className="text-sm text-gray-500 text-center py-4">No timeline events yet</p>}
+                  {trackingLoading || loading ? <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" style={{ color: COLORS.primary }} /></div> : (trackingData?.timeline?.length > 0 || timeline.length > 0) ? <div className="relative">{timelineEvents.map((event, index) => (<div key={index} className="flex items-start space-x-3 mb-4"><div className="flex-shrink-0"><div className={`w-8 h-8 mt-1.5 rounded-full flex items-center justify-center ${getTimelineIconBg(event)}`}>{(() => { const { icon: TimelineIcon, color } = getTimelineIcon(event); return <TimelineIcon className={`h-4 w-4 ${color}`} />; })()}</div></div><div className="flex-1 bg-gray-50 rounded-lg p-3"><div className="flex justify-between items-start"><div><p className="text-sm font-medium text-gray-900">{event.statusLabel || getShipmentStatusDisplayText(event.status) || event.title || 'Update'}</p>{event.description && <p className="text-xs text-gray-600 mt-1">{event.description}</p>}{event.location && <p className="text-xs text-gray-500 mt-1 flex items-center"><MapPin className="h-3 w-3 mr-1" />{event.location}</p>}</div><p className="text-xs text-gray-400">{formatShipmentDate(event.timestamp || event.date || event.createdAt, 'long')}</p></div>{event.updatedBy && <p className="text-xs text-gray-400 mt-2">By: {event.updatedBy}</p>}</div></div>))}</div> : <p className="text-sm text-gray-500 text-center py-4">No timeline events yet</p>}
                 </div>
               )}
             </>
@@ -1677,9 +1939,11 @@ const TimelineModal = ({ isOpen, onClose, shipmentId }) => {
 
   if (!isOpen) return null;
 
+  const sortedTimeline = sortTimelineEvents(timeline);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Shipment Timeline" size="lg">
-      {loading ? <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" style={{ color: COLORS.primary }} /><span className="ml-2 text-sm text-gray-500">Loading timeline...</span></div> : timeline.length > 0 ? <div className="space-y-4">{timeline.map((event, index) => (<div key={index} className="flex items-start space-x-3"><div className="flex-shrink-0"><div className={`w-8 h-8 rounded-full flex items-center justify-center ${event.type === 'status' ? 'bg-blue-100' : event.type === 'tracking' ? 'bg-green-100' : event.type === 'note' ? 'bg-purple-100' : 'bg-gray-100'}`}>{event.type === 'status' && <Activity className="h-4 w-4 text-blue-600" />}{event.type === 'tracking' && <MapPin className="h-4 w-4 text-green-600" />}{event.type === 'note' && <MessageSquare className="h-4 w-4 text-purple-600" />}</div></div><div className="flex-1"><p className="text-sm font-medium text-gray-900">{event.title}</p><p className="text-xs text-gray-500">{event.description}</p><p className="text-xs text-gray-400 mt-1">{formatShipmentDate(event.createdAt, 'long')}</p></div></div>))}</div> : <p className="text-sm text-gray-500 text-center py-4">No timeline events found</p>}
+      {loading ? <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" style={{ color: COLORS.primary }} /><span className="ml-2 text-sm text-gray-500">Loading timeline...</span></div> : timeline.length > 0 ? <div className="space-y-4">{sortedTimeline.map((event, index) => (<div key={index} className="flex items-start space-x-3"><div className="flex-shrink-0"><div className={`w-8 h-8 mt-1.5 rounded-full flex items-center justify-center ${getTimelineIconBg(event)}`}>{(() => { const { icon: TimelineIcon, color } = getTimelineIcon(event); return <TimelineIcon className={`h-4 w-4 ${color}`} />; })()}</div></div><div className="flex-1"><p className="text-sm font-medium text-gray-900">{event.title}</p><p className="text-xs text-gray-500">{event.description}</p><p className="text-xs text-gray-400 mt-1">{formatShipmentDate(event.createdAt, 'long')}</p></div></div>))}</div> : <p className="text-sm text-gray-500 text-center py-4">No timeline events found</p>}
     </Modal>
   );
 };
@@ -1709,6 +1973,7 @@ export default function ShipmentsPage() {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showWarehouseModal, setShowWarehouseModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [stats, setStats] = useState({ total: 0, active: 0, delivered: 0, cancelled: 0, pending: 0, inTransit: 0 });
   const [topRoutes, setTopRoutes] = useState([]);
@@ -1750,6 +2015,7 @@ export default function ShipmentsPage() {
       case 'note': setShowNoteModal(true); break;
       case 'warehouse': setShowWarehouseModal(true); break;
       case 'cancel': setShowCancelModal(true); break;
+      case 'delete': setShowDeleteModal(true); break;
       case 'download': if (shipment.documents && shipment.documents.length > 0) toast.info('Download feature coming soon'); else toast.info('No documents to download'); break;
       case 'share': if (shipment.trackingNumber) { const trackingUrl = new URL('/tracking-number', window.location.origin); trackingUrl.searchParams.set('tracking', shipment.trackingNumber); trackingUrl.searchParams.set('type', 'tracking_number'); navigator.clipboard.writeText(trackingUrl.toString()); toast.success('Tracking link copied!'); } else toast.warning('No tracking number available'); break;
       default: break;
@@ -1764,6 +2030,7 @@ export default function ShipmentsPage() {
   const handleAddNote = { internalNote: async (shipmentId, noteData) => { try { const result = await addInternalNote(shipmentId, noteData); if (result.success) { toast.success('Internal note added!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to add note'); } }, customerNote: async (shipmentId, noteData) => { try { const result = await addCustomerNote(shipmentId, noteData); if (result.success) { toast.success('Customer note added!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to add note'); } } };
   const handleWarehouseAction = { receive: async (shipmentId, data) => { try { const result = await receiveAtWarehouse(shipmentId, data); if (result.success) { toast.success('Shipment received!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to receive'); } }, process: async (shipmentId, data) => { try { const result = await processWarehouse(shipmentId, data); if (result.success) { toast.success('Warehouse processing completed!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to process'); } } };
   const handleCancelShipment = async (shipmentId, cancelData) => { try { const result = await cancelShipment(shipmentId, cancelData); if (result.success) { toast.success('Shipment cancelled!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to cancel'); } };
+  const handleDeleteShipment = async (shipmentId) => { try { const result = await deleteShipment(shipmentId); if (result.success) { toast.success('Shipment deleted!'); fetchShipments(); } else toast.error(result.message); } catch (error) { toast.error('Failed to delete shipment'); } };
   const handleExport = () => { if (shipments.length === 0) toast.warning('No shipments to export'); else { exportShipmentsToCSV(shipments); toast.success(`${shipments.length} shipments exported!`); } };
   const handleSelectAll = () => { if (selectedShipments.length === filteredShipments.length) setSelectedShipments([]); else setSelectedShipments(filteredShipments.map(s => s._id)); };
   const filterByStatus = (status) => { setActiveStat(status); if (status === 'all') setFilteredShipments(shipments); else setFilteredShipments(shipments.filter(s => s.status === status)); if (status !== 'all') setFilters(prev => ({ ...prev, page: 1 })); };
@@ -1820,7 +2087,7 @@ export default function ShipmentsPage() {
                 <tr><th className="w-10 px-4 py-3"></th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><div className="flex items-center cursor-pointer hover:text-gray-700" onClick={() => handleSort('shipmentNumber')}>Shipment Info<ArrowUpDown className="h-4 w-4 ml-1" /></div></th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><div className="flex items-center cursor-pointer hover:text-gray-700" onClick={() => handleSort('customer')}>Customer<ArrowUpDown className="h-4 w-4 ml-1" /></div></th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><div className="flex items-center cursor-pointer hover:text-gray-700" onClick={() => handleSort('createdAt')}>Created<ArrowUpDown className="h-4 w-4 ml-1" /></div></th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Packages</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th></tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {loading ? (<tr><td colSpan="9" className="px-4 py-8 text-center"><div className="flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" style={{ color: COLORS.primary }} /><span className="ml-2 text-sm text-gray-500">Loading shipments...</span></div></td></tr>) : filteredShipments.length === 0 ? (<tr><td colSpan="9" className="px-4 py-8 text-center"><div className="flex flex-col items-center"><Package className="h-12 w-12 text-gray-400 mb-3" /><p className="text-sm text-gray-500">No shipments found</p></div></td></tr>) : (filteredShipments.map((shipment) => { const totalWeight = calculateTotalWeight(shipment.packages); const progress = getShipmentProgress(shipment.status); const trackingStatus = getTrackingStatus(shipment); const statusConfig = STATUS_CONFIG[shipment.status] || {}; return (<tr key={shipment._id} className="hover:bg-gray-50 transition-colors group"><td className="px-4 py-3"></td><td className="px-4 py-3"><div><div className="text-sm font-medium cursor-pointer hover:underline" style={{ color: COLORS.primary }} onClick={() => { setSelectedShipment(shipment); setShowDetailsModal(true); }}>{shipment.shipmentNumber || shipment._id?.slice(-8).toUpperCase()}</div>{shipment.trackingNumber && (<div className="text-xs text-gray-500 flex items-center mt-1"><Hash className="h-3 w-3 mr-1" />{shipment.trackingNumber}</div>)}</div></td><td className="px-4 py-3"><div className="text-sm font-medium text-gray-900">{shipment.customerId?.companyName || `${shipment.customerId?.firstName || ''} ${shipment.customerId?.lastName || ''}`.trim() || 'N/A'}</div>{shipment.customerId?.email && <div className="text-xs text-gray-500">{shipment.customerId.email}</div>}</td><td className="px-4 py-3"><div className="flex items-center text-xs"><span className="font-medium text-gray-900">{shipment.shipmentDetails?.origin || 'N/A'}</span><ChevronRight className="h-3 w-3 mx-1 text-gray-400" /><span className="font-medium text-gray-900">{shipment.shipmentDetails?.destination || 'N/A'}</span></div></td><td className="px-4 py-3"><div className="text-xs text-gray-500">{formatShipmentDate(shipment.createdAt, 'short')}</div></td><td className="px-4 py-3"><div className="text-xs"><div className="text-gray-900">{shipment.packages?.length || 0} pkgs</div><div className="text-gray-500">{formatWeight(totalWeight)}</div></div></td><td className="px-4 py-3"><div className="flex flex-col space-y-1"><StatusBadge status={shipment.status} size="sm" />{!statusConfig.hideProgress && <div className="w-24"><ProgressBar progress={progress} /></div>}</div></td><td className="px-4 py-3"><ActionMenu shipment={shipment} onAction={handleAction} /></td></tr>); }))}
+                {loading ? (<tr><td colSpan="9" className="px-4 py-8 text-center"><div className="flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" style={{ color: COLORS.primary }} /><span className="ml-2 text-sm text-gray-500">Loading shipments...</span></div></td></tr>) : filteredShipments.length === 0 ? (<tr><td colSpan="9" className="px-4 py-8 text-center"><div className="flex flex-col items-center"><Package className="h-12 w-12 text-gray-400 mb-3" /><p className="text-sm text-gray-500">No shipments found</p></div></td></tr>) : (filteredShipments.map((shipment) => { const totalWeight = calculateTotalWeight(shipment.packages); const progress = getShipmentProgress(shipment.status); const trackingStatus = getTrackingStatus(shipment); const statusConfig = STATUS_CONFIG[shipment.status] || {}; return (<tr key={shipment._id} className="hover:bg-gray-50 transition-colors group"><td className="px-4 py-3"></td><td className="px-4 py-3 whitespace-nowrap"><div><div className="text-sm font-medium cursor-pointer hover:underline whitespace-nowrap" style={{ color: COLORS.primary }} onClick={() => { setSelectedShipment(shipment); setShowDetailsModal(true); }}>{shipment.shipmentNumber || shipment._id?.slice(-8).toUpperCase()}</div>{shipment.trackingNumber && (<div className="text-xs text-gray-500 flex items-center mt-1"><Hash className="h-3 w-3 mr-1" />{shipment.trackingNumber}</div>)}</div></td><td className="px-4 py-3"><div className="text-sm font-medium text-gray-900">{shipment.customerId?.companyName || `${shipment.customerId?.firstName || ''} ${shipment.customerId?.lastName || ''}`.trim() || 'N/A'}</div>{shipment.customerId?.email && <div className="text-xs text-gray-500">{shipment.customerId.email}</div>}</td><td className="px-4 py-3"><div className="flex items-center text-xs"><span className="font-medium text-gray-900">{shipment.shipmentDetails?.origin || 'N/A'}</span><ChevronRight className="h-3 w-3 mx-1 text-gray-400" /><span className="font-medium text-gray-900">{shipment.shipmentDetails?.destination || 'N/A'}</span></div></td><td className="px-4 py-3"><div className="text-xs text-gray-500">{formatShipmentDate(shipment.createdAt, 'short')}</div></td><td className="px-4 py-3"><div className="text-xs"><div className="text-gray-900">{shipment.packages?.length || 0} pkgs</div><div className="text-gray-500">{formatWeight(totalWeight)}</div></div></td><td className="px-4 py-3"><div className="flex flex-col space-y-1"><StatusBadge status={shipment.status} size="sm" />{!statusConfig.hideProgress && <div className="w-24"><ProgressBar progress={progress} /></div>}</div></td><td className="px-4 py-3"><ActionMenu shipment={shipment} onAction={handleAction} /></td></tr>); }))}
               </tbody>
             </table>
           </div>
@@ -1839,6 +2106,7 @@ export default function ShipmentsPage() {
       <NoteModal isOpen={showNoteModal} onClose={() => setShowNoteModal(false)} shipment={selectedShipment} onAdd={handleAddNote} />
       <WarehouseModal isOpen={showWarehouseModal} onClose={() => setShowWarehouseModal(false)} shipment={selectedShipment} onAction={handleWarehouseAction} />
       <CancelModal isOpen={showCancelModal} onClose={() => setShowCancelModal(false)} shipment={selectedShipment} onCancel={handleCancelShipment} />
+      <DeleteShipmentModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} shipment={selectedShipment} onDelete={handleDeleteShipment} />
       <ReturnRequestsModal isOpen={showReturnRequestsModal} onClose={() => setShowReturnRequestsModal(false)} onRefresh={fetchShipments} />
     </div>
   );

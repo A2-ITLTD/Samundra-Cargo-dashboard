@@ -518,7 +518,7 @@ const handleSubmit = async () => {
 
     console.log('📦 Submitting inspection:', inspectionData);
 
-    const result = await inspectShipment(receipt._id, inspectionData);
+    const result = await inspectShipment(receipt._id, inspectionData, photos);
     
     if (result.success) {
       toast.success('✅ Inspection completed successfully');

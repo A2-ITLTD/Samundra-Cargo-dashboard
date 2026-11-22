@@ -1,6 +1,6 @@
 // services/shipping.js - getAllShipments ফাংশন আপডেট
 
-import axiosInstance from '@/lib/axiosInstance';
+import axiosInstance, { isAuthRedirectInProgress } from '@/lib/axiosInstance';
 import Cookies from 'js-cookie';
 
 const inFlightMutations = new Map();
@@ -138,7 +138,9 @@ export const getAllShipments = async (params = {}) => {
     throw new Error(response.data.message || 'Failed to fetch shipments');
     
   } catch (error) {
-    console.error('❌ Get all shipments error:', error);
+    if (!isAuthRedirectInProgress()) {
+      console.error('❌ Get all shipments error:', error);
+    }
     return {
       success: false,
       data: [],
@@ -915,20 +917,43 @@ export const getShipmentModeDisplay = (mode) => {
 // Get progress percentage
 export const getShipmentProgress = (status) => {
   const progressMap = {
+    'draft': 5,
     'pending': 10,
-    'received_at_warehouse': 25,
+    'booking_confirmed': 10,
+    'picked_up_from_warehouse': 15,
+    'received_at_warehouse': 20,
+    'inspected': 22,
+    'consolidating': 25,
+    'consolidated': 30,
     'consolidation_in_progress': 35,
+    'ready_for_dispatch': 35,
     'ready_for_shipping': 45,
+    'loaded_in_container': 40,
+    'loaded_into_container': 40,
+    'dispatched': 45,
+    'departed_port_of_origin': 50,
+    'in_transit_sea_freight': 55,
     'in_transit': 60,
+    'arrived_at_destination_port': 70,
     'arrived_at_destination': 75,
+    'customs_cleared': 80,
+    'under_customs_clearance': 80,
     'customs_clearance': 85,
+    'unloaded_from_vessel': 90,
     'out_for_delivery': 95,
     'delivered': 100,
+    'completed': 100,
+    'damage_reported': 0,
+    'on_hold': 0,
     'cancelled': 0,
-    'draft': 5
+    'returned': 0,
+    'return_requested': 0,
+    'return_approved': 100,
+    'return_rejected': 0,
+    'return_completed': 100
   };
-  
-  return progressMap[status] || 0;
+
+  return progressMap[status] ?? 0;
 };
 
 // Check if shipment is active
@@ -950,34 +975,31 @@ export const isShipmentActive = (status) => {
 // Format date
 export const formatShipmentDate = (dateString, format = 'medium') => {
   if (!dateString) return 'N/A';
-  
-  const date = new Date(dateString);
-  
-  if (format === 'short') {
+
+  const raw = String(dateString);
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+  const date = isDateOnly ? new Date(`${raw}T00:00:00Z`) : new Date(raw);
+
+  if (Number.isNaN(date.getTime())) return 'N/A';
+
+  if (isDateOnly) {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  }
-  
-  if (format === 'long') {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
+      month: format === 'short' ? 'short' : 'long',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      timeZone: 'UTC'
     });
   }
-  
-  return date.toLocaleDateString('en-US', {
+
+  const withTime = {
     year: 'numeric',
-    month: 'short',
+    month: format === 'short' ? 'short' : 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  });
+  };
+
+  return date.toLocaleDateString('en-US', withTime);
 };
 
 // Format currency

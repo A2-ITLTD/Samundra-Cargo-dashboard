@@ -28,6 +28,7 @@ import {
 
 // ==================== MANUAL INVOICE API IMPORT ====================
 import { getManualInvoices ,ManualdeleteInvoice} from '@/services/manualIvnoice';
+import { getCurrentUser } from '@/services/Authentication';
 
 import { toast } from 'react-toastify';
 import {
@@ -50,6 +51,11 @@ Font.register({
   family: 'Helvetica',
   src: 'https://fonts.gstatic.com/s/helvetica/v1/Helvetica.ttf'
 });
+const getLocalDateString = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 // Add this helper function for date formatting
 const formatDateSafe = (date, format = 'short') => {
   if (!date) return 'N/A';
@@ -317,7 +323,18 @@ const getStatusInfo = (status, type = 'invoice') => {
 
 const formatDateTime = (date) => {
   if (!date) return 'N/A';
-  return new Date(date).toLocaleString('en-US', {
+  const raw = String(date);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [year, month, day] = raw.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return 'N/A';
+  return parsed.toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -644,7 +661,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, onConfirm }) => {
   const [paymentData, setPaymentData] = useState({
     paymentMethod: 'Bank Transfer',
     paymentReference: '',
-    paymentDate: new Date().toISOString().split('T')[0]
+    paymentDate: getLocalDateString()
   });
 
   useEffect(() => {
@@ -652,7 +669,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, onConfirm }) => {
       setPaymentData({
         paymentMethod: 'Bank Transfer',
         paymentReference: '',
-        paymentDate: new Date().toISOString().split('T')[0]
+        paymentDate: getLocalDateString()
       });
     }
   }, [invoice]);
@@ -701,7 +718,7 @@ const PaymentModal = ({ isOpen, onClose, invoice, onConfirm }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
-              <input type="date" value={paymentData.paymentDate} onChange={(e) => setPaymentData({ ...paymentData, paymentDate: e.target.value })} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#E67E22]" />
+              <input type="date" value={paymentData.paymentDate} onChange={(e) => setPaymentData({ ...paymentData, paymentDate: e.target.value })} max={getLocalDateString()} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#E67E22]" />
             </div>
           </div>
           <div className="flex justify-end space-x-2 mt-6">
@@ -754,18 +771,25 @@ const DeleteModal = ({ isOpen, onClose, onConfirm, invoice }) => {
 };
 
 // Empty State
-const EmptyState = ({ onRefresh }) => (
+const EmptyState = ({ onRefresh }) => {
+  const canCreateBooking = getCurrentUser()?.role !== 'warehouse';
+  return (
   <div className="text-center py-16 bg-white rounded-xl border">
     <div className="bg-red-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"><Receipt className="h-10 w-10 text-[#E67E22]" /></div>
     <h3 className="text-lg font-medium text-gray-900 mb-2">No invoices found</h3>
     <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">Create your first Bookings to get started with billing and payment tracking.</p>
     <div className="flex items-center justify-center space-x-3">
-      <Link href="/Bookings/create_bookings" className="inline-flex items-center px-4 py-2 bg-[#E67E22] text-white rounded-lg hover:bg-[#d35400]"><PlusCircle className="h-4 w-4 mr-2" />Create New Bookings</Link>
-      <Link href="/Bookings/create_manually" className="inline-flex items-center px-4 py-2 bg-[#4a6af8] text-white rounded-lg hover:bg-[#d35400]"><PlusCircle className="h-4 w-4 mr-2" />Create Manual Bookings</Link>
+      {canCreateBooking && (
+        <>
+          <Link href="/Bookings/create_bookings" className="inline-flex items-center px-4 py-2 bg-[#E67E22] text-white rounded-lg hover:bg-[#d35400]"><PlusCircle className="h-4 w-4 mr-2" />Create New Bookings</Link>
+          <Link href="/Bookings/create_manually" className="inline-flex items-center px-4 py-2 bg-[#4a6af8] text-white rounded-lg hover:bg-[#d35400]"><PlusCircle className="h-4 w-4 mr-2" />Create Manual Bookings</Link>
+        </>
+      )}
       <button onClick={onRefresh} className="inline-flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50"><RefreshCw className="h-4 w-4 mr-2" />Refresh</button>
     </div>
   </div>
-);
+  );
+};
 
 // ==================== MAIN PAGE ====================
 
